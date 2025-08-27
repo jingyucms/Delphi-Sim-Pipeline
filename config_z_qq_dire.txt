@@ -1,0 +1,17 @@
+# Pythia8 Configuration File: Z→qq events with Dire Shower
+# For use with DELPHI simulation at 91.187 GeV
+
+# Beam configuration for e+e- collisions at Z pole
+Beams:idA = 11          # Electron
+Beams:idB = -11         # Positron  
+Beams:eCM = 91.187      # Center-of-mass energy (GeV)
+
+# Process selection: Z boson production and decay
+WeakSingleBoson:ffbar2gmZ = on
+
+# Z boson decay modes - restrict to quarks only
+23:onMode = off         # Turn off all Z decays first
+23:onIfAny = 1 2 3 4 5  # Enable only quark decays (u,d,s,c,b)
+
+# Dire shower configuration
+PartonShowers:model = 3            

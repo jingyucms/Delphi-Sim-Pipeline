@@ -1,0 +1,39 @@
+# PYTHIA 8 Configuration for Z -> tau tau
+# Configuration for e+e- -> Z -> tau tau at Z pole
+# ================================================
+
+# Beam configuration - electron-positron collision at Z mass
+Beams:idA = 11
+Beams:idB = -11
+Beams:eCM = 91.187
+
+# Enable Z production
+WeakSingleBoson:ffbar2gmZ = on
+
+# Z boson decay settings - turn off all decay modes first
+23:onMode = off
+
+# Enable only tau decay mode for Z boson
+# PDG code 15 = tau lepton
+23:onIfAny = 15
+
+# Parton shower settings
+PartonLevel:ISR = on
+PartonLevel:FSR = on
+
+# Hadron level processing (for tau decay products)
+HadronLevel:all = on
+
+# Tau decay settings (optional - controls how taus decay)
+# Leave default tau decay modes enabled to get realistic tau decays
+# 15:onMode = on  # This is default anyway
+
+# Optional: Force specific tau decay modes if needed
+# 15:onMode = off           # Turn off all tau decays first
+# 15:onIfAny = 11 13        # Only electronic and muonic decays
+# 15:onIfAny = 211 -211     # Only to charged pions (hadronic)
+
+# Print some information
+Print:quiet = off
+Init:showChangedSettings = on
+Init:showChangedParticleData = on
