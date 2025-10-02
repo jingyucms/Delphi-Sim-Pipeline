@@ -61,6 +61,11 @@ NUM_EVENTS=${1:-3000}
 JOB_ID=${2:-$(date +%Y%m%d_%H%M%S)}
 OUTPUT_DIR=${3:-/work/output}
 CONFIG_FILE=${4:-""}
+DELSIM_VERSION=${5:-"v94c"}
+E_BEAM=${6:-"45.625"}
+
+echo "DELSIM version: $DELSIM_VERSION"
+echo "Beam energy: $E_BEAM"
 
 # Generate variable NRUN for DELSIM based on job_id and time
 # This ensures different random seeds for DELSIM across jobs
@@ -180,7 +185,7 @@ fi
 
 echo "Running DELSIM with $DELSIM_EVENTS events (90% of $NUM_EVENTS requested) and NRUN=$DELSIM_NRUN..."
 # Run runsim 
-runsim -VERSION v94c -LABO CERN -NRUN $DELSIM_NRUN -EBEAM 45.625 -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen 
+runsim -VERSION $DELSIM_VERSION -LABO CERN -NRUN $DELSIM_NRUN -EBEAM $E_BEAM -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen 
 
 # Step 5: Collect outputs (move instead of copy to save disk space)
 echo "Step 5: Collecting outputs..."

@@ -3,7 +3,7 @@
 # Simple wrapper to submit multiple batches of your existing condor script
 # Usage: ./submit_batches.sh
 
-NUM_BATCHES=10
+NUM_BATCHES=30
 SUBMIT_FILE="condor_delphi.sub"
 
 echo "=== Submitting $NUM_BATCHES batches of $JOBS_PER_BATCH jobs each ==="

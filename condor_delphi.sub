@@ -1,9 +1,9 @@
 universe                = docker
-docker_image            = registry.cern.ch/docker.io/jingyucms/delphi-pythia8:v2.3
+docker_image            = registry.cern.ch/docker.io/jingyucms/delphi-pythia8:v2.5
 
 # Use timestamp + Process to create unique job IDs
 # This ensures no conflicts across multiple batch submissions
-arguments               = 3000 job_$(ClusterId)_$(Process) /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/output config_z_qq_dire.txt
+arguments               = 3000 job_$(ClusterId)_$(Process) /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/output config_z_qq_dire.txt v94c 45.625
 
 getenv                  = True
 should_transfer_files   = YES
@@ -19,4 +19,4 @@ log                     = condor_logs/job_$(ClusterId)_$(Process).log
 output                  = condor_logs/job_$(ClusterId)_$(Process).out
 error                   = condor_logs/job_$(ClusterId)_$(Process).err
 
-queue 25
+queue 10

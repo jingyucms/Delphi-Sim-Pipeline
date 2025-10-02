@@ -15,17 +15,31 @@ private:
     int events_written;
 
     // This is temperary, might not be correct. 
-    int convertToJetsetStatus(int pythia8_status) {
+    int convertToJetsetStatus(int pythia8_status, int pdg_id) {
+        // First determine normal status
+        int status;
+        
         if (pythia8_status > 0) {
-            if ((pythia8_status >= 81 && pythia8_status <= 99)) return 1;
-            
-            if (pythia8_status >= 21 && pythia8_status <= 80) return 2;
-            
-            if (pythia8_status >= 11 && pythia8_status <= 20) return 11;
+            if ((pythia8_status >= 81 && pythia8_status <= 99)) status = 1;
+            else if (pythia8_status >= 21 && pythia8_status <= 80) status = 2;
+            else if (pythia8_status >= 11 && pythia8_status <= 20) status = 11;
+            else status = 21;  // Default fallback
         } else {
-            if (pythia8_status <= -11) return 21;
+            if (pythia8_status <= -11) status = 21;
+            else status = 21;  // Default fallback
         }
-        return 21;  // Default fallback
+        
+        // If it would be final state (status 1) AND is a V0 particle, change to status 4
+        if (status == 1) {
+            int abs_pdg = abs(pdg_id);
+            if (abs_pdg == 310 || abs_pdg == 130 ||  // K0_S, K0_L
+                abs_pdg == 3122 ||                   // Lambda, Anti-Lambda
+                abs_pdg == 3322) {                   // Xi0, Anti-Xi0
+                return 4;  // Special status for V0 particles in final state
+            }
+        }
+        
+        return status;
     }
     
     bool isValidParticle(const Particle& p) {
@@ -108,12 +122,13 @@ public:
         }
         
         // Count different particle types for validation
-        int nFinal = 0, nIntermediate = 0, nBeam = 0;
+        int nFinal = 0, nIntermediate = 0, nBeam = 0, nV0 = 0;
         for (int idx : validParticles) {
-            int status = convertToJetsetStatus(event[idx].status());
+            int status = convertToJetsetStatus(event[idx].status(), event[idx].id());
             if (status == 1) nFinal++;
             else if (status == 2 || status == 11) nIntermediate++;
             else if (status == 21) nBeam++;
+            else if (status == 4) nV0++;
         }
         
         // Ensure we have final state particles (DELSIM needs these)
@@ -124,7 +139,7 @@ public:
         
         std::cout << "Event " << eventNum << " ACCEPTED: " << n << " particles ("
                  << nFinal << " final, " << nIntermediate << " intermediate, " 
-                 << nBeam << " beam)" << std::endl;
+                 << nBeam << " beam, " << nV0 << " V0)" << std::endl;
         
         // Write the event
         int record_size = 4 + n * (5*4 + 5*4 + 5*4);
@@ -137,7 +152,7 @@ public:
             
             // K array
             int k[5];
-            k[0] = convertToJetsetStatus(p.status());
+            k[0] = convertToJetsetStatus(p.status(), p.id());
             k[1] = p.id();
             k[2] = 0;  // Simplified mother-daughter relationships
             k[3] = 0;
@@ -270,6 +285,31 @@ int main(int argc, char* argv[]) {
         std::cout << "  e+e- -> Z -> hadrons at 91.187 GeV" << std::endl;
         std::cout << "  ISR/FSR enabled, hadronic decays only" << std::endl;
     }
+    
+    // ============================================
+    // DISABLE V0 PARTICLE DECAYS
+    // ============================================
+    std::cout << "Disabling V0 particle decays:" << std::endl;
+    
+    // Disable K0_S decay (PDG ID: 310)
+    pythia.readString("310:mayDecay = false");
+    std::cout << "  K0_S (310) decay disabled" << std::endl;
+    
+    // Disable Lambda decay (PDG ID: 3122)
+    pythia.readString("3122:mayDecay = false");
+    std::cout << "  Lambda (3122) decay disabled" << std::endl;
+    
+    // Disable Anti-Lambda decay (PDG ID: -3122)  
+    pythia.readString("-3122:mayDecay = false");
+    std::cout << "  Anti-Lambda (-3122) decay disabled" << std::endl;
+    
+    // Disable Xi0 decay (PDG ID: 3322)
+    pythia.readString("3322:mayDecay = false");
+    std::cout << "  Xi0 (3322) decay disabled" << std::endl;
+    
+    // Disable Anti-Xi0 decay (PDG ID: -3322)
+    pythia.readString("-3322:mayDecay = false");
+    std::cout << "  Anti-Xi0 (-3322) decay disabled" << std::endl;
     
     if (!pythia.init()) {
         std::cerr << "PYTHIA initialization failed!" << std::endl;

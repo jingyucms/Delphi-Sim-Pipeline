@@ -1,6 +1,6 @@
 # DELPHI-Pythia8 Pipeline Docker Image
 # Use your existing working image instead of pulling fresh
-FROM docker.io/jingyucms/delphi-pythia8:v2.2
+FROM docker.io/jingyucms/delphi-pythia8:v2.4
 
 # Already has Pythia 8 installed, so skip the installation
 # Switch to root (probably already root in your image)
