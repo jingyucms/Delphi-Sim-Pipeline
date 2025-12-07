@@ -1,0 +1,23 @@
+# PYTHIA 8 Configuration for Z -> e e
+# Configuration for e+e- -> Z -> e e at Z pole
+# ================================================
+
+# Beam configuration - electron-positron collision at Z mass
+Beams:idA = 11
+Beams:idB = -11
+Beams:eCM = 91.187
+
+# Enable Z production
+WeakSingleBoson:ffbar2gmZ = on
+
+# Z boson decay settings - turn off all decay modes first
+23:onMode = off
+
+# Enable only muon decay mode for Z boson
+# PDG code 11 = electron
+23:onIfAny = 11
+
+# Print some information
+Print:quiet = off
+Init:showChangedSettings = on
+Init:showChangedParticleData = on

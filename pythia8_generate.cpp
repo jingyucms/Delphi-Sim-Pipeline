@@ -15,27 +15,46 @@ private:
     int events_written;
 
     // This is temperary, might not be correct. 
-    int convertToJetsetStatus(int pythia8_status, int pdg_id) {
-        // First determine normal status
+    int convertToJetsetStatus(int pythia8_status, int pdg_id, int mother_id) {
         int status;
         
         if (pythia8_status > 0) {
-            if ((pythia8_status >= 81 && pythia8_status <= 99)) status = 1;
+            // Status 23: outgoing from hard process
+            if (pythia8_status == 23) {
+                int abs_pdg = abs(pdg_id);
+                if (abs_pdg == 11 || abs_pdg == 13 ||
+                    abs_pdg == 12 || abs_pdg == 14 || abs_pdg == 16) {
+                    status = 1;
+                } else {
+                    status = 2;
+                }
+            }
+            // Status 51-60: FSR products - accept leptons but NOT from photon conversion
+            else if (pythia8_status >= 51 && pythia8_status <= 60) {
+                int abs_pdg = abs(pdg_id);
+                int abs_mother = abs(mother_id);
+                
+                // Accept leptons (e, μ) ONLY if mother is NOT a photon
+                if ((abs_pdg == 11 || abs_pdg == 13) && abs_mother != 22) {
+                    status = 1;  // Primary lepton after FSR
+                } else {
+                    status = 21;  // Photon conversion products or other
+                }
+            }
+            else if (pythia8_status >= 81 && pythia8_status <= 99) status = 1;
             else if (pythia8_status >= 21 && pythia8_status <= 80) status = 2;
             else if (pythia8_status >= 11 && pythia8_status <= 20) status = 11;
-            else status = 21;  // Default fallback
+            else status = 21;
         } else {
-            if (pythia8_status <= -11) status = 21;
-            else status = 21;  // Default fallback
+            status = 21;
         }
         
-        // If it would be final state (status 1) AND is a V0 particle, change to status 4
+        // V0 handling
         if (status == 1) {
             int abs_pdg = abs(pdg_id);
-            if (abs_pdg == 310 || abs_pdg == 130 ||  // K0_S, K0_L
-                abs_pdg == 3122 ||                   // Lambda, Anti-Lambda
-                abs_pdg == 3322) {                   // Xi0, Anti-Xi0
-                return 4;  // Special status for V0 particles in final state
+            if (abs_pdg == 310 || abs_pdg == 130 ||
+                abs_pdg == 3122 || abs_pdg == 3322) {
+                return 4;
             }
         }
         
@@ -69,12 +88,26 @@ private:
         
         for (int i = 1; i < event.size(); ++i) {
             const Particle& p = event[i];
-            if (p.isFinal() && isValidParticle(p)) {
+            
+            if (p.status() <= 0) continue;  // Skip intermediate/negative status
+            if (!isValidParticle(p)) continue;
+            
+            // Get mother PDG ID
+            int mother_pdg = 0;
+            if (p.mother1() > 0 && p.mother1() < event.size()) {
+                mother_pdg = event[p.mother1()].id();
+            }
+            
+            // Check what JETSET status this would get
+            int jetset_status = convertToJetsetStatus(p.status(), p.id(), mother_pdg);
+            
+            // Count only final state particles (status 1 or 4)
+            if (jetset_status == 1 || jetset_status == 4) {
                 nFinal++;
             }
         }
         
-        return nFinal >= 2;  // Require at least 2 final state particles
+        return nFinal >= 2;
     }
     
 public:
@@ -124,7 +157,12 @@ public:
         // Count different particle types for validation
         int nFinal = 0, nIntermediate = 0, nBeam = 0, nV0 = 0;
         for (int idx : validParticles) {
-            int status = convertToJetsetStatus(event[idx].status(), event[idx].id());
+            int mother_pdg = 0;
+            if (event[idx].mother1() > 0 && event[idx].mother1() < event.size()) {
+                mother_pdg = event[event[idx].mother1()].id();
+            }
+            
+            int status = convertToJetsetStatus(event[idx].status(), event[idx].id(), mother_pdg);
             if (status == 1) nFinal++;
             else if (status == 2 || status == 11) nIntermediate++;
             else if (status == 21) nBeam++;
@@ -149,10 +187,15 @@ public:
         
         for (int idx : validParticles) {
             const Particle& p = event[idx];
+
+            int mother_pdg = 0;
+            if (p.mother1() > 0 && p.mother1() < event.size()) {
+                mother_pdg = event[p.mother1()].id();
+            }
             
             // K array
             int k[5];
-            k[0] = convertToJetsetStatus(p.status(), p.id());
+            k[0] = convertToJetsetStatus(p.status(), p.id(), mother_pdg);
             k[1] = p.id();
             k[2] = 0;  // Simplified mother-daughter relationships
             k[3] = 0;
