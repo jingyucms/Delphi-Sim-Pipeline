@@ -1,0 +1,49 @@
+C- --------------------------------------------------------------------------
+C- -- DelKK title file ------------------------------------------------------
+C- --------------------------------------------------------------------------
+
+LIST
+
+C- Laboratory Identifier
+LABO 'LYON'
+
+C- Run Number
+NRUN 16015
+
+C- Number of events to be processed
+NEVT 100
+
+C- Centre of mass Energy
+ECMS 206.5
+
+C- Fermion flavour
+C-  1 = down
+C-  2 = up
+C-  3 = strange
+C-  4 = charm
+C-  5 = Beauty
+C- 10 = Inclusive hadrons
+C- 13 = muons
+C- 15 = taus
+IFRM 15
+
+C- ISR-FSR Interference
+C-  0 = Interference Off
+C-  2 = Interference On
+KINT 2
+
+C- Radiation from Quarks
+C-  0 = in Pythia
+C-  1 = in KK
+KQSR 0
+
+C-Hadronization ?
+C-  0 = off
+C-  1 = on
+KHAD 0
+
+END
+
+
+
+

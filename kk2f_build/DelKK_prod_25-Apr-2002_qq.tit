@@ -1,0 +1,112 @@
+C- --------------------------------------------------------------------------
+C- -- DelKK title file ------------------------------------------------------
+C- --------------------------------------------------------------------------
+
+LIST
+
+C- Laboratory Identifier
+LABO 'LYON'
+
+C- Run Number
+NRUN 16015
+
+C- Number of events to be processed
+NEVT 100
+
+C- Centre of mass Energy
+ECMS 206.5
+
+C- Fermion flavour
+C-  1 = down
+C-  2 = up
+C-  3 = strange
+C-  4 = charm
+C-  5 = Beauty
+C- 10 = Inclusive hadrons
+C- 13 = muons
+C- 15 = taus
+IFRM 10
+
+C- ISR-FSR Interference
+C-  0 = Interference Off
+C-  2 = Interference On
+KINT 0
+
+C- Radiation from Quarks
+C-  0 = in Pythia
+C-  1 = in KK
+KQSR 0
+
+C- Hadronization ?
+C-  0 = off
+C-  1 = on
+KHAD 1
+
+C- B/C fragmentation
+c-  0    = no update b/c fragmentation parametrs
+c-  NNNN = use update to b/c frag. version NNNN [0402]
+KBCF 0402
+
+C- BSW matrix elements for semileptonic b and c decays
+C- 0     = do not use it
+C- 1     = use it
+KWSB 0
+
+C- Decay tables
+C-  0    = no update to decay tables
+C-  NNNN = use update to decay tables version NNNN [0402]
+KDCY 0402
+
+C- Bose-Einstein flags ------------------------------
+
+C- Bose Einstein correlations controlled as in PYTHIA
+C-  0 = Do nothing
+C-  1 = exponential parameterization
+C-  2 = gaussian parameterization
+MSTJ51 0
+
+C- Number of mesons participating in BE
+MSTJ52 9
+
+C- Bose-Einstein correlations between mesons from
+C-  0 for BE applied on mesons from the whole event
+C-  1 BE applied on mesons within a W only
+MSTJ53 0
+
+C- Bose Einstein model 
+C-  0 = BE0
+C-  1 = BE3
+C-  2 = BE32
+MSTJ54 2
+
+C- PRJ92 is input to PYTHIA/JETSET PARJ(92) for:
+C-  'lambda' parameter suggested   1.1 for BE0,
+C-                                2.0 for BE3,
+C-                               1.35 for BE32
+C-                               1.11 for BE32 gauss+alternative tuning
+C-                               1.735 for BE32 exp.param.+alternative tuning
+PRJ92 1.735
+
+C- PRJ93 is input to PYTHIA/JETSET PARJ(93) for:
+C-  hbar/r(fm) parameter suggested 0.3 for BE0,
+C-                                 0.3 for BE3,
+C-                                0.34 for BE32
+C-                                0.37 for BE32 gauss+alternative tuning
+C-                                0.261 for BE32 exp.param.=alternative tuning
+PRJ93 0.261
+
+C- PRJ94 is additional parameter handling 'distance' between strings
+PRJ94 1000.
+
+C- Alternative Bose_Einstein tuning (J.d'Hondt)
+C-  0 = standard DELPHI setup
+C-  1 = to be used with exponential parameterization of BE
+C-  2 = to be used with gaussian parameterization of BE
+TUNE 0
+
+
+END
+
+
+
+

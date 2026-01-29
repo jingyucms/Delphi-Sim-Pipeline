@@ -1,0 +1,23 @@
+
+# KK2f build artifacts
+kk2f_build/*.exe
+kk2f_build/*.o
+kk2f_build/*.log
+kk2f_build/DelKK.inp
+kk2f_build/fort.*
+kk2f_build/delana*
+kk2f_build/simrun*
+kk2f_build/simlocal*
+kk2f_build/scanlist*
+kk2f_build/survey*
+kk2f_build/delsimrn*
+kk2f_build/igtots*
+kk2f_build/lund.output
+
+# Output directories
+kk2f_isr_off_output/
+kk2f_isr_on_output/
+test_kk2f_output/
+
+# Docker tar files
+*.tar

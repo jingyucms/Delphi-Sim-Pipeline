@@ -1,0 +1,28 @@
+# DELPHI-KK2f Pipeline Docker Image v2.7
+# Built on top of v2.6 (has DELPHI environment + Pythia 8)
+FROM jingyucms/delphi-pythia8:v2.6
+
+USER root
+WORKDIR /work
+
+# Copy KK2f executable and runtime files only
+COPY kk2f_build/kk2f_qq.exe /work/kk2f_build/
+COPY kk2f_build/kk2f.inp /work/kk2f_build/
+COPY kk2f_build/kk2f_ISR_off.inp /work/kk2f_build/
+COPY kk2f_build/kk2f_qq_ISR_on.tit /work/kk2f_build/
+COPY kk2f_build/kk2f_qq_ISR_off.tit /work/kk2f_build/
+COPY kk2f_build/.KK2f_defaults /work/kk2f_build/
+COPY kk2f_build/input /work/kk2f_build/input/
+
+# Copy KK2f pipeline script
+COPY run_kk2f_pipeline.sh /work/
+RUN chmod +x /work/run_kk2f_pipeline.sh
+
+# Create output directory
+RUN mkdir -p /work/output && chmod 777 /work/output
+
+# Set entrypoint to KK2f pipeline
+ENTRYPOINT ["/work/run_kk2f_pipeline.sh"]
+
+# Default: 100 events, ISR-on
+CMD ["100"]
