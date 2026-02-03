@@ -1,28 +1,22 @@
 #!/bin/bash
 
-# Wrapper to submit multiple batches of KK2f jobs
-# Usage: ./submit_condor_kk2f.sh [ISR_mode]
-# ISR_mode: "on" or "off" (default: "off")
+echo "=== Submitting KK2f Production Jobs ==="
+echo "Total jobs: 1250 (625 ISR ON + 625 ISR OFF)"
+echo "Events per job: 3000"
+echo "Total events: ~3.75 million"
+echo ""
 
-ISR_MODE=${1:-"off"}
-NUM_BATCHES=10
-SUBMIT_FILE="condor_kk2f_ISR_${ISR_MODE}.sub"
-
-if [ ! -f "$SUBMIT_FILE" ]; then
-    echo "ERROR: Submission file $SUBMIT_FILE not found"
-    exit 1
-fi
-
-echo "=== Submitting $NUM_BATCHES batches of KK2f ISR-${ISR_MODE} jobs ==="
-echo "Submission file: $SUBMIT_FILE"
-
-for batch in $(seq 1 $NUM_BATCHES); do
-    echo "Submitting batch $batch/$NUM_BATCHES..."
-    condor_submit $SUBMIT_FILE
-    sleep 3  
-    echo "Batch $batch submitted"
+# Submit in batches
+for batch in {1..25}; do
+    echo "Batch $batch/25: Submitting ISR ON..."
+    condor_submit condor_kk2f_ISR_on.sub
+    sleep 2
+    
+    echo "Batch $batch/25: Submitting ISR OFF..."
+    condor_submit condor_kk2f_ISR_off.sub
+    sleep 2
 done
 
-echo "=== All $NUM_BATCHES batches submitted ==="
-echo "Total jobs: $((NUM_BATCHES * 25)) jobs"
-echo "Check status: condor_q"
+echo ""
+echo "✅ All jobs submitted!"
+echo "Monitor with: condor_q"

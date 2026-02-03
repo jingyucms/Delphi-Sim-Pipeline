@@ -45,3 +45,9 @@ EndX
 
 
 
+********************************************************************************
+**     Pythia 6 Error Handling
+**     MSTU(22) = maximum number of errors before stopping
+**     MSTU(23) = current error counter (don't set this)
+ 1022        10000        MSTU(22) - Allow many errors before stopping
+********************************************************************************
