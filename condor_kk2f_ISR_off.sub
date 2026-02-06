@@ -1,5 +1,5 @@
 universe                = docker
-docker_image            = registry.cern.ch/docker.io/jingyucms/delphi-kk2f:v2.11
+docker_image            = registry.cern.ch/docker.io/jingyucms/delphi-kk2f:v2.13
 
 # ISR OFF mode
 arguments               = 3000 job_$(ClusterId)_$(Process) /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/output off

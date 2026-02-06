@@ -1,23 +1,14 @@
-FROM docker.io/jingyucms/delphi-pythia8:v2.6
+# KK2f-DELSIM Pipeline Docker Image v2.14
+FROM docker.io/jingyucms/delphi-kk2f:v2.12
 
-WORKDIR /work/kk2f_build
-
-# Copy KK2f executable and dependencies
-COPY kk2f_build/kk2f_qq.exe .
-COPY kk2f_build/.KK2f_defaults .
-COPY kk2f_build/input ./input/
-COPY kk2f_build/kk2f.inp .
-COPY kk2f_build/kk2f_qq_ISR_on.tit .
-COPY kk2f_build/kk2f_qq_ISR_off.tit .
-COPY kk2f_build/DelKK_prod_25-Apr-2002_qq.tit .
-COPY kk2f_build/DelKK_prod_25-Apr-2002_mm.tit .
-COPY kk2f_build/DelKK_prod_25-Apr-2002_tt.tit .
-
-# Copy fixer
+USER root
 WORKDIR /work
-COPY kk2f_fadgen_fixer .
-COPY run_kk2f_pipeline.sh .
-RUN chmod +x kk2f_fadgen_fixer run_kk2f_pipeline.sh
 
+# Copy updated pipeline script and fixer
+COPY run_kk2f_pipeline.sh /work/
+COPY kk2f_fadgen_fixer /work/
+RUN chmod +x /work/run_kk2f_pipeline.sh /work/kk2f_fadgen_fixer
+
+# Set entrypoint
 ENTRYPOINT ["/work/run_kk2f_pipeline.sh"]
-CMD ["3000"]
+CMD ["3000", "test_job", "/work/output", "on"]

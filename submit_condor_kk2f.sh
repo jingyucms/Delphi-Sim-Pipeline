@@ -9,7 +9,7 @@ echo ""
 # Submit in batches
 for batch in {1..25}; do
     echo "Batch $batch/25: Submitting ISR ON..."
-    condor_submit condor_kk2f_ISR_on.sub
+    #condor_submit condor_kk2f_ISR_on.sub
     sleep 2
     
     echo "Batch $batch/25: Submitting ISR OFF..."
