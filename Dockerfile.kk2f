@@ -1,4 +1,4 @@
-# KK2f-DELSIM Pipeline Docker Image v2.14
+# KK2f-DELSIM Pipeline Docker Image v2.16
 FROM docker.io/jingyucms/delphi-kk2f:v2.12
 
 USER root
@@ -8,6 +8,9 @@ WORKDIR /work
 COPY run_kk2f_pipeline.sh /work/
 COPY kk2f_fadgen_fixer /work/
 RUN chmod +x /work/run_kk2f_pipeline.sh /work/kk2f_fadgen_fixer
+
+# Fix missing DelKK.inp symlink (doesn't survive Docker copy)
+RUN cd /work/kk2f_build && ln -s kk2f.inp DelKK.inp
 
 # Set entrypoint
 ENTRYPOINT ["/work/run_kk2f_pipeline.sh"]

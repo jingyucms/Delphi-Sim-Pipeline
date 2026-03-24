@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # KK2f-DELSIM Pipeline Script
-# Usage: ./run_kk2f_pipeline.sh [num_events] [job_id] [output_dir] [isr_mode]
+# Usage: ./run_kk2f_pipeline.sh [num_events] [job_id] [output_dir] [isr_mode] [energy]
 
 set -e  # Exit on any error
 
@@ -10,6 +10,7 @@ NUM_EVENTS=${1:-3000}
 JOB_ID=${2:-$(date +%Y%m%d_%H%M%S)}
 OUTPUT_DIR=${3:-/work/output}
 ISR_MODE=${4:-"on"}  # "on" or "off"
+ENERGY=${5:-91.187}  # Center-of-mass energy in GeV (default: Z pole)
 
 # Convert OUTPUT_DIR to absolute path if relative
 if [[ "$OUTPUT_DIR" != /* ]]; then
@@ -21,11 +22,30 @@ echo "Events to generate: $NUM_EVENTS"
 echo "Job ID: $JOB_ID"
 echo "Output directory: $OUTPUT_DIR"
 echo "ISR mode: $ISR_MODE"
+echo "Center-of-mass energy: $ENERGY GeV"
 echo "Working directory: $(pwd)"
 echo "========================================"
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
+
+# Generate unique random seeds from JOB_ID
+# Extract cluster and process IDs from job_ISRon_X_Y or job_ISRoff_X_Y format
+BASE_NRUN=50000
+if [[ "$JOB_ID" =~ ([0-9]+)_([0-9]+) ]]; then
+    CLUSTER_ID=${BASH_REMATCH[1]}
+    PROCESS_ID=${BASH_REMATCH[2]}
+    KK2F_NRUN=$((BASE_NRUN + (CLUSTER_ID % 800)*100 + PROCESS_ID))
+    DELSIM_NRUN=$((BASE_NRUN + (CLUSTER_ID % 800)*100 + PROCESS_ID + 1))  # +1 offset from KK2f
+else
+    HASH_VALUE=$(echo "$JOB_ID" | cksum | cut -d' ' -f1)
+    KK2F_NRUN=$((BASE_NRUN + HASH_VALUE % 88000))
+    DELSIM_NRUN=$((BASE_NRUN + (HASH_VALUE % 88000) + 1))
+fi
+
+echo "Random seeds:"
+echo "  KK2f NRUN: $KK2F_NRUN"
+echo "  DELSIM NRUN: $DELSIM_NRUN"
 
 # Step 1: Prepare KK2f workspace in /tmp
 TEMP_DIR="/tmp/kk2f_${JOB_ID}"
@@ -35,41 +55,52 @@ cd "$TEMP_DIR"
 echo "=== Setting up KK2f workspace ==="
 cp /work/kk2f_build/kk2f_qq.exe .
 cp /work/kk2f_build/.KK2f_defaults .
+cp /work/kk2f_build/DelKK.inp .
+cp /work/kk2f_build/kk2f.inp fort.5
 cp -r /work/kk2f_build/input .
 cp /work/kk2f_fadgen_fixer .
 
-# Select configuration based on ISR mode
+# Create fort.19 with UNIQUE NRUN for each job
+cat > fort.19 <<EOF
+LIST
+LABO 'LYON'
+NRUN $KK2F_NRUN
+NEVT $NUM_EVENTS
+ECMS $ENERGY
+IFRM 10
+KHAD 1
+KBCF 0402
+KDCY 0402
+END
+EOF
+
+echo "Generated fort.19 with unique NRUN $KK2F_NRUN:"
+cat fort.19
+
+# CRITICAL: Set ISR mode by modifying ONLY .KK2f_defaults line 49
+# KeyISR=1 for ISR ON (EEX), KeyISR=0 for ISR OFF
+echo ""
+echo "=== Configuring ISR mode ==="
 if [ "$ISR_MODE" = "on" ]; then
-    cp /work/kk2f_build/kk2f_qq_ISR_on.tit fort.19
-    KEYISR_VALUE=2  # CEEX
+    KEYISR_VALUE=1
+    echo "Setting KeyISR=1 (ISR ON - EEX exponentiation)"
 else
-    cp /work/kk2f_build/kk2f_qq_ISR_off.tit fort.19
-    KEYISR_VALUE=0  # ISR OFF
+    KEYISR_VALUE=0
+    echo "Setting KeyISR=0 (ISR OFF)"
 fi
 
-# Copy and modify fort.5
-cp /work/kk2f_build/kk2f.inp DelKK.inp
-cp /work/kk2f_build/kk2f.inp fort.5
-
-# CRITICAL: Modify KeyISR in ALL .KK2f_defaults files (line 49)
-echo "Setting KeyISR=$KEYISR_VALUE in all defaults files..."
-for defaults_file in .KK2f_defaults input/KK2f_defaults input/KK2f_defaults_v4-13 input/KK2f_defaults_v4-14; do
-    if [ -f "$defaults_file" ]; then
-        sed -i "49s/              1/              ${KEYISR_VALUE}/" "$defaults_file"
-        echo "  Updated $defaults_file"
-    fi
-done
+# Modify KeyISR in .KK2f_defaults line 49 only
+sed -i "49s/              [0-2]/              ${KEYISR_VALUE}/" .KK2f_defaults
 
 # Verify KeyISR setting
-echo "KeyISR setting in .KK2f_defaults:"
-grep "KeyISR" .KK2f_defaults
+echo "KeyISR setting in .KK2f_defaults line 49:"
+sed -n '49p' .KK2f_defaults
 
-# Update NEVT in fort.19 based on NUM_EVENTS
-sed -i "s/NEVT [0-9]*/NEVT $NUM_EVENTS/" fort.19
-
+echo ""
 echo "=== Running KK2f event generation ==="
 
-# CRITICAL: Clean old outputs before running KK2f (prevents unit 51/61 errors)
+# CRITICAL: Clean old outputs and cache files before running
+# fort.51/fort.52 are integration grids - must delete when switching ISR mode
 rm -f lund.output fort.51 fort.52 fort.61 fort.62 kk2f.log
 
 # Run KK2f
@@ -82,8 +113,23 @@ if [ ! -f "lund.output" ] || [ ! -s "lund.output" ]; then
     exit 1
 fi
 
+# Extract and display cross-section for verification
 EVENT_COUNT=$(grep -c "Event listing" kk2f.log || echo 0)
-echo "✓ KK2f generated $EVENT_COUNT events"
+CROSS_SECTION=$(grep "Cross-section:" kk2f.log || echo "Cross-section not found")
+
+echo "✓ KK2f generation completed"
+echo "  Events generated: $EVENT_COUNT"
+echo "  $CROSS_SECTION"
+echo ""
+echo "=== ISR Verification ==="
+if [ "$ISR_MODE" = "on" ]; then
+    echo "Expected: Cross-section should be HIGH (e.g., ~85 pb at 200 GeV, ~30 nb at Z pole)"
+else
+    echo "Expected: Cross-section should be LOW (e.g., ~20 pb at 200 GeV, ~12 nb at Z pole)"
+fi
+echo "========================================"
+echo ""
+
 ls -lh lund.output
 
 # Step 2: Fix FADGEN format with kk2f_fadgen_fixer
@@ -140,19 +186,6 @@ if ! command -v runsim &> /dev/null; then
 fi
 echo "✓ DELPHI environment configured"
 
-# Generate DELSIM NRUN from job_id
-BASE_NRUN=50000
-if [[ "$JOB_ID" =~ job_([0-9]+)_([0-9]+) ]]; then
-    CLUSTER_ID=${BASH_REMATCH[1]}
-    PROCESS_ID=${BASH_REMATCH[2]}
-    DELSIM_NRUN=$((BASE_NRUN + (CLUSTER_ID % 800)*100 + PROCESS_ID))
-else
-    HASH_VALUE=$(echo "$JOB_ID" | cksum | cut -d' ' -f1)
-    DELSIM_NRUN=$((BASE_NRUN + HASH_VALUE % 88000))
-fi
-
-echo "DELSIM NRUN: $DELSIM_NRUN"
-
 # Step 4: Run DELSIM simulation
 echo "=== Running DELSIM simulation ==="
 DELSIM_EVENTS=$((NUM_EVENTS * 90 / 100))
@@ -182,9 +215,14 @@ rm -f simana.fadsim simana.fadana my_events.fadgen *.out *.log fort.* lund.outpu
 cd /work
 rm -rf "$TEMP_DIR"
 
+echo ""
 echo "=== Pipeline completed successfully ==="
-echo "ISR mode: $ISR_MODE (KeyISR=$KEYISR_VALUE)"
-echo "DELSIM NRUN: $DELSIM_NRUN"
+echo "Configuration:"
+echo "  ISR mode: $ISR_MODE (KeyISR=$KEYISR_VALUE)"
+echo "  Energy: $ENERGY GeV"
+echo "  KK2f NRUN: $KK2F_NRUN"
+echo "  DELSIM NRUN: $DELSIM_NRUN"
+echo "  $CROSS_SECTION"
 echo "Output: ${OUTPUT_DIR}/simana_${JOB_ID}.sdst"
 ls -lh "${OUTPUT_DIR}/simana_${JOB_ID}.sdst"
 echo "========================================"
