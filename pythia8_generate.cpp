@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <unistd.h>
+#include <unordered_map>
 
 using namespace Pythia8;
 
@@ -147,7 +148,43 @@ public:
         }
         
         int n = validParticles.size();
-        
+
+        // Build mapping from Pythia8 event index to 1-based output index.
+        // Used to translate mother/daughter references after filtering.
+        std::unordered_map<int, int> indexMap;
+        indexMap.reserve(n);
+        for (int i = 0; i < n; ++i) {
+            indexMap[validParticles[i]] = i + 1;
+        }
+
+        // Walk up the mother chain until we find a particle that survived the
+        // filter; return its 1-based output index, or 0 if none is found.
+        auto findValidMother = [&](int idx) -> int {
+            int m = event[idx].mother1();
+            int eventSize = static_cast<int>(event.size());
+            while (m > 0 && m < eventSize) {
+                auto it = indexMap.find(m);
+                if (it != indexMap.end()) return it->second;
+                m = event[m].mother1();
+            }
+            return 0;
+        };
+
+        // Collect all valid daughters and return the {first, last} 1-based
+        // output indices (both 0 when the particle has no valid daughters).
+        auto findValidDaughters = [&](int idx) -> std::pair<int, int> {
+            std::vector<int> dList = event[idx].daughterList();
+            int first = 0, last = 0;
+            for (int d : dList) {
+                auto it = indexMap.find(d);
+                if (it != indexMap.end()) {
+                    if (first == 0 || it->second < first) first = it->second;
+                    if (it->second > last) last = it->second;
+                }
+            }
+            return {first, last};
+        };
+
         // Ensure we have enough particles for DELSIM
         if (n < 2) {
             std::cout << "Event " << eventNum << " REJECTED: Only " << n << " valid particles" << std::endl;
@@ -197,9 +234,10 @@ public:
             int k[5];
             k[0] = convertToJetsetStatus(p.status(), p.id(), mother_pdg);
             k[1] = p.id();
-            k[2] = 0;  // Simplified mother-daughter relationships
-            k[3] = 0;
-            k[4] = 0;
+            k[2] = findValidMother(idx);
+            std::pair<int,int> kd = findValidDaughters(idx);
+            k[3] = kd.first;
+            k[4] = kd.second;
             
             outfile.write(reinterpret_cast<const char*>(k), 5*4);
             
