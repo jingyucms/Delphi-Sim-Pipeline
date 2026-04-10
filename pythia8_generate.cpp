@@ -159,9 +159,9 @@ public:
 
         // Walk up the mother chain until we find a particle that survived the
         // filter; return its 1-based output index, or 0 if none is found.
+        const int eventSize = static_cast<int>(event.size());
         auto findValidMother = [&](int idx) -> int {
             int m = event[idx].mother1();
-            int eventSize = static_cast<int>(event.size());
             while (m > 0 && m < eventSize) {
                 auto it = indexMap.find(m);
                 if (it != indexMap.end()) return it->second;
@@ -173,7 +173,7 @@ public:
         // Collect all valid daughters and return the {first, last} 1-based
         // output indices (both 0 when the particle has no valid daughters).
         auto findValidDaughters = [&](int idx) -> std::pair<int, int> {
-            std::vector<int> dList = event[idx].daughterList();
+            const std::vector<int> dList = event[idx].daughterList();
             int first = 0, last = 0;
             for (int d : dList) {
                 auto it = indexMap.find(d);
