@@ -185,25 +185,31 @@ jobs:
             -c "
               set -e
 
-              # Source DELPHI offline environment (provides SKELANA / DSTANA)
-              if [ -f /cvmfs/delphi.cern.ch/setup.sh ]; then
-                source /cvmfs/delphi.cern.ch/setup.sh
-              else
-                echo 'WARNING: /cvmfs/delphi.cern.ch/setup.sh not found – continuing without it'
+              # ── LCG view (provides ROOT + CMake config needed by delphi-nanoaod) ──
+              # Try recent LCG releases for el9/almalinux9.  The view sets up
+              # ROOT_DIR, CMAKE_PREFIX_PATH, and all compiler paths so that
+              # CMake's find_package(ROOT) succeeds without extra flags.
+              LCG_SOURCED=0
+              for LCG_VIEW in \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc11-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_106b/x86_64-el9-gcc11-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc12-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_104/x86_64-el9-gcc12-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-centos9-gcc11-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el8-gcc11-opt/setup.sh; do
+                if [ -f \"\$LCG_VIEW\" ]; then
+                  source \"\$LCG_VIEW\"
+                  echo \"Sourced LCG view: \$LCG_VIEW\"
+                  LCG_SOURCED=1
+                  break
+                fi
+              done
+              if [ \"\$LCG_SOURCED\" -eq 0 ]; then
+                echo 'ERROR: No LCG view found on /cvmfs/sft.cern.ch – cannot build delphi-nanoaod without ROOT'
+                exit 1
               fi
 
-              # Source the most recent ROOT release available for this platform
-              ROOT_THISROOT=\$(find /cvmfs/sft.cern.ch/lcg/app/releases/ROOT \
-                -name 'thisroot.sh' 2>/dev/null \
-                | grep 'x86_64-almalinux9' | sort -V | tail -1)
-              if [ -n \"\$ROOT_THISROOT\" ]; then
-                source \"\$ROOT_THISROOT\"
-                echo \"Sourced ROOT from \$ROOT_THISROOT\"
-              else
-                echo 'WARNING: No ROOT thisroot.sh found on sft.cern.ch – build may fail'
-              fi
-
-              # Clone and build delphi-nanoaod
+              # Clone and build delphi-nanoaod (ROOT is now on CMAKE_PREFIX_PATH)
               git clone https://gitlab.cern.ch/delphi/delphi-nanoaod.git /nanoaod/src
               cmake -S /nanoaod/src -B /nanoaod/build -DCMAKE_BUILD_TYPE=Release
               cmake --build /nanoaod/build --parallel 2
