@@ -186,15 +186,26 @@ jobs:
               set -e
 
               # ── LCG view (provides ROOT + CMake config needed by delphi-nanoaod) ──
-              # Try recent LCG releases for el9/almalinux9.  The view sets up
-              # ROOT_DIR, CMAKE_PREFIX_PATH, and all compiler paths so that
-              # CMake's find_package(ROOT) succeeds without extra flags.
-              LCG_VIEW=/cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc15-opt/setup.sh
-              if [ -f \"\$LCG_VIEW\" ]; then
-                source \"\$LCG_VIEW\"
-                echo \"Sourced LCG view: \$LCG_VIEW\"
-              else
-                echo 'ERROR: LCG view not found: '\"\$LCG_VIEW\"' – cannot build delphi-nanoaod without ROOT'
+              # LCG_109 was released with gcc13 on el9; try that first, then
+              # fall back to older releases so CI stays green as new views appear.
+              LCG_SOURCED=0
+              for LCG_VIEW in \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc15-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc13-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc11-opt/setup.sh \
+                  /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc12-opt/setup.sh; do
+                if [ -f \"\$LCG_VIEW\" ]; then
+                  source \"\$LCG_VIEW\"
+                  echo \"Sourced LCG view: \$LCG_VIEW\"
+                  LCG_SOURCED=1
+                  break
+                fi
+              done
+              if [ \"\$LCG_SOURCED\" -eq 0 ]; then
+                echo '=== Available LCG views on CVMFS ==='
+                ls /cvmfs/sft.cern.ch/lcg/views/ 2>/dev/null || echo '(cannot list views)'
+                echo 'ERROR: No compatible LCG view found – cannot build delphi-nanoaod without ROOT'
                 exit 1
               fi
 
