@@ -185,6 +185,14 @@ jobs:
             -c "
               set -e
 
+              # ── Diagnose what CVMFS looks like inside the container ──
+              echo '=== /cvmfs mount point ==='
+              ls /cvmfs/ 2>/dev/null || echo '  (empty or not mounted)'
+              echo '=== /cvmfs/sft.cern.ch/lcg/views ==='
+              ls /cvmfs/sft.cern.ch/lcg/views/ 2>/dev/null || echo '  (not accessible)'
+              echo '=== LCG_109 sub-dirs (if present) ==='
+              ls /cvmfs/sft.cern.ch/lcg/views/LCG_109/ 2>/dev/null || echo '  (LCG_109 not found)'
+
               # ── LCG view (provides ROOT + CMake config needed by delphi-nanoaod) ──
               # LCG_109 was released with gcc13 on el9; try that first, then
               # fall back to older releases so CI stays green as new views appear.
