@@ -22,9 +22,13 @@ jobs:
     steps:
       # ---------------------------------------------------------------- #
       # 1. Source code                                                     #
+      #    Full history (fetch-depth: 0) is required so the change-       #
+      #    detection step below can diff against the PR base branch.      #
       # ---------------------------------------------------------------- #
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # ---------------------------------------------------------------- #
       # 2. CVMFS                                                           #
@@ -41,12 +45,43 @@ jobs:
           cvmfs_repositories: "sft.cern.ch,opendata.cern.ch,delphi.cern.ch"
 
       # ---------------------------------------------------------------- #
-      # 3. Build the Docker image                                          #
+      # 3. Detect whether the Docker image needs rebuilding               #
+      #    On pull_request: diff the PR against its base branch.  If     #
+      #    none of the image-affecting files changed, pull the already-   #
+      #    published GHCR image and skip the (slow) local build.         #
+      #    On push to main: always rebuild so the cache stays fresh.     #
+      # ---------------------------------------------------------------- #
+      - name: Detect whether Docker image needs rebuilding
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED=$(git diff --name-only \
+              origin/${{ github.base_ref }}...HEAD \
+              -- Dockerfile pythia8_generate.cpp Makefile \
+                 run_pipeline.sh kk2f_fadgen_fixer.cpp '*.txt' \
+              2>/dev/null || true)
+            if [ -n "$CHANGED" ]; then
+              echo "rebuild=true" >> "$GITHUB_OUTPUT"
+              echo "Image-affecting files changed – will rebuild:"
+              echo "$CHANGED"
+            else
+              echo "rebuild=false" >> "$GITHUB_OUTPUT"
+              echo "No image-affecting files changed – will pull pre-built image from GHCR."
+            fi
+          else
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+            echo "Push to main – rebuilding image."
+          fi
+
+      # ---------------------------------------------------------------- #
+      # 4. Build the Docker image  (only when image files changed)        #
       # ---------------------------------------------------------------- #
       - name: Set up Docker Buildx
+        if: steps.changes.outputs.rebuild == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
+        if: steps.changes.outputs.rebuild == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -59,7 +94,18 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ---------------------------------------------------------------- #
-      # 4. Pythia8 generation smoke test                                  #
+      # 4b. Pull pre-built image  (when no image files changed on PR)    #
+      #     Uses the latest image pushed to GHCR by the docker.yml       #
+      #     workflow.  The image is public so no login is required.      #
+      # ---------------------------------------------------------------- #
+      - name: Pull pre-built image from GHCR
+        if: steps.changes.outputs.rebuild == 'false'
+        run: |
+          docker pull ghcr.io/dickychant/delphi-pythia8-pipeline:latest
+          docker tag  ghcr.io/dickychant/delphi-pythia8-pipeline:latest delphi-pipeline:ci
+
+      # ---------------------------------------------------------------- #
+      # 5. Pythia8 generation smoke test                                  #
       #    Runs pythia8_generate directly (no DELSIM) so that the test   #
       #    is fast and self-contained.  We verify that:                   #
       #      • the binary exits 0                                         #
@@ -85,7 +131,7 @@ jobs:
             "
 
       # ---------------------------------------------------------------- #
-      # 5. Optional: full DELSIM pipeline smoke test                      #
+      # 6. Optional: full DELSIM pipeline smoke test                      #
       #    Runs the complete run_pipeline.sh entrypoint (Pythia8 +        #
       #    DELSIM).  This step is allowed to fail in CI; it will succeed  #
       #    only when the DELPHI runtime is fully reachable (e.g. on a    #
@@ -103,7 +149,7 @@ jobs:
             100 ci_smoke /work/output
 
       # ---------------------------------------------------------------- #
-      # 6. Optional: convert DELSIM output to delphi-nanoaod ROOT        #
+      # 7. Optional: convert DELSIM output to delphi-nanoaod ROOT        #
       #    Converts simana.sdst → ROOT RNtuple using the delphi-nanoaod  #
       #    tool (https://gitlab.cern.ch/delphi/delphi-nanoaod).          #
       #    Requirements (all sourced from CVMFS inside the container):   #
@@ -176,7 +222,7 @@ jobs:
             "
 
       # ---------------------------------------------------------------- #
-      # 7. Report and upload artifacts                                     #
+      # 8. Report and upload artifacts                                     #
       #    Always runs so CI stays informative even when optional steps   #
       #    above fail.  The delphinanoaod ROOT file (or, if conversion    #
       #    was skipped, the raw simana.sdst) is retained for 1 day so    #
