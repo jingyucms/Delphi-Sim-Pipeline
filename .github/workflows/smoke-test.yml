@@ -2,10 +2,11 @@ name: Smoke Test (100 events)
 
 # Run a quick end-to-end Pythia8 generation test on every push and PR.
 # CVMFS is mounted so the container can reach DELPHI / LCG software on
-# /cvmfs/sft.cern.ch if needed (e.g. for the full DELSIM stage or for
-# picking up condition data).  The mandatory step is the Pythia8
-# generator; the DELSIM step is attempted when runsim is found in the
-# image and is allowed to fail gracefully in CI.
+# /cvmfs/sft.cern.ch (LCG stack + ROOT releases),
+# /cvmfs/opendata.cern.ch (DELPHI condition data), and
+# /cvmfs/delphi.cern.ch (DELPHI offline software, needed for NanoAOD).
+# The mandatory step is the Pythia8 generator; the DELSIM and NanoAOD
+# steps are attempted and allowed to fail gracefully in CI.
 on:
   push:
     branches: [main]
@@ -27,16 +28,17 @@ jobs:
 
       # ---------------------------------------------------------------- #
       # 2. CVMFS                                                           #
-      #    Mounts /cvmfs/sft.cern.ch (LCG / Pythia8 releases) and        #
-      #    /cvmfs/opendata.cern.ch (DELPHI open-data condition files).   #
-      #    The bind-mount is forwarded into the Docker container below    #
-      #    via -v /cvmfs:/cvmfs:ro so the full DELPHI runtime is         #
-      #    accessible when present.                                        #
+      #    Mounts:                                                         #
+      #      sft.cern.ch       – LCG / Pythia8 releases, ROOT binaries   #
+      #      opendata.cern.ch  – DELPHI open-data condition files         #
+      #      delphi.cern.ch    – DELPHI offline software (NanoAOD)        #
+      #    All three are forwarded into Docker containers via             #
+      #    -v /cvmfs:/cvmfs:ro.                                           #
       # ---------------------------------------------------------------- #
       - name: Mount CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v4
         with:
-          cvmfs_repositories: "sft.cern.ch,opendata.cern.ch"
+          cvmfs_repositories: "sft.cern.ch,opendata.cern.ch,delphi.cern.ch"
 
       # ---------------------------------------------------------------- #
       # 3. Build the Docker image                                          #
@@ -62,7 +64,6 @@ jobs:
       #    is fast and self-contained.  We verify that:                   #
       #      • the binary exits 0                                         #
       #      • fort.26 is produced and is non-empty                       #
-      #      • the expected number of events is reported                  #
       # ---------------------------------------------------------------- #
       - name: Run 100-event Pythia8 generation
         run: |
@@ -101,8 +102,100 @@ jobs:
             delphi-pipeline:ci \
             100 ci_smoke /work/output
 
+      # ---------------------------------------------------------------- #
+      # 6. Optional: convert DELSIM output to delphi-nanoaod ROOT        #
+      #    Converts simana.sdst → ROOT RNtuple using the delphi-nanoaod  #
+      #    tool (https://gitlab.cern.ch/delphi/delphi-nanoaod).          #
+      #    Requirements (all sourced from CVMFS inside the container):   #
+      #      • /cvmfs/delphi.cern.ch/setup.sh   – DELPHI offline env     #
+      #      • ROOT from /cvmfs/sft.cern.ch      – headers + libs        #
+      #    Allowed to fail; step is skipped when no sdst is present.     #
+      # ---------------------------------------------------------------- #
+      - name: Convert DELSIM output to NanoAOD ROOT (allow failure)
+        continue-on-error: true
+        run: |
+          SDST=$(ls /tmp/ci_output/simana_*.sdst 2>/dev/null | head -1)
+          if [ -z "$SDST" ]; then
+            echo "No simana.sdst found in /tmp/ci_output – skipping NanoAOD conversion."
+            exit 0
+          fi
+          echo "Converting $SDST to delphi-nanoaod ROOT..."
+          mkdir -p /tmp/nanoaod_build
+          docker run --rm \
+            -v /cvmfs:/cvmfs:ro \
+            -v /tmp/ci_output:/work/output \
+            -v /tmp/nanoaod_build:/nanoaod \
+            --entrypoint bash \
+            delphi-pipeline:ci \
+            -c "
+              set -e
+
+              # Source DELPHI offline environment (provides SKELANA / DSTANA)
+              if [ -f /cvmfs/delphi.cern.ch/setup.sh ]; then
+                source /cvmfs/delphi.cern.ch/setup.sh
+              else
+                echo 'WARNING: /cvmfs/delphi.cern.ch/setup.sh not found – continuing without it'
+              fi
+
+              # Source the most recent ROOT release available for this platform
+              ROOT_THISROOT=\$(find /cvmfs/sft.cern.ch/lcg/app/releases/ROOT \
+                -name 'thisroot.sh' 2>/dev/null \
+                | grep 'x86_64-almalinux9' | sort -V | tail -1)
+              if [ -n \"\$ROOT_THISROOT\" ]; then
+                source \"\$ROOT_THISROOT\"
+                echo \"Sourced ROOT from \$ROOT_THISROOT\"
+              else
+                echo 'WARNING: No ROOT thisroot.sh found on sft.cern.ch – build may fail'
+              fi
+
+              # Clone and build delphi-nanoaod
+              git clone https://gitlab.cern.ch/delphi/delphi-nanoaod.git /nanoaod/src
+              cmake -S /nanoaod/src -B /nanoaod/build -DCMAKE_BUILD_TYPE=Release
+              cmake --build /nanoaod/build --parallel 2
+
+              # Locate the YAML configuration (use the first example found)
+              CONFIG=\$(find /nanoaod/src -name '*.yaml' | head -1)
+              CONFIG_ARG=\${CONFIG:+\"-C \$CONFIG\"}
+
+              # Locate the sdst produced by DELSIM
+              SDST_IN=\$(ls /work/output/simana_*.sdst 2>/dev/null | head -1)
+
+              echo \"=== delphi-nanoaod conversion ===\"
+              echo \"  input : \$SDST_IN\"
+              echo \"  config: \${CONFIG:-<none>}\"
+              echo \"  output: /work/output/delphinanoaod_100events.root\"
+
+              /nanoaod/build/delphi-nanoaod/delphi-nanoaod \
+                --pdlinput \"\$SDST_IN\" \
+                \$CONFIG_ARG \
+                --output /work/output/delphinanoaod_100events.root \
+                --mc
+
+              echo 'PASS: delphinanoaod_100events.root produced'
+              ls -lh /work/output/delphinanoaod_100events.root
+            "
+
+      # ---------------------------------------------------------------- #
+      # 7. Report and upload artifacts                                     #
+      #    Always runs so CI stays informative even when optional steps   #
+      #    above fail.  The delphinanoaod ROOT file (or, if conversion    #
+      #    was skipped, the raw simana.sdst) is retained for 1 day so    #
+      #    it can be downloaded and inspected from the Actions summary.   #
+      # ---------------------------------------------------------------- #
       - name: Report full pipeline output
         if: always()
         run: |
           echo "=== Full pipeline output files ==="
           ls -lh /tmp/ci_output/ 2>/dev/null || echo "(no output files — DELSIM step skipped or failed)"
+
+      - name: Upload pipeline output artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-output-${{ github.run_number }}
+          # Uploads the NanoAOD ROOT file when conversion succeeded, or
+          # the raw simana.sdst when only DELSIM ran, so the job always
+          # produces something inspectable when the full chain ran.
+          path: /tmp/ci_output/
+          retention-days: 1
+          if-no-files-found: warn
