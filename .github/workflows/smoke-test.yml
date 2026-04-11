@@ -223,6 +223,16 @@ jobs:
               # Locate the sdst produced by DELSIM
               SDST_IN=\$(ls /work/output/simana_*.sdst 2>/dev/null | head -1)
 
+              # ── PHDST T.FSEQ1 workaround ──────────────────────────────────
+              # delphi-nanoaod passes --pdlinput to PHDST as a steering text
+              # file. When the argument is a binary SDST, PHDST fails to parse
+              # it and falls back to opening the default FPACK sequential input
+              # file T.FSEQ1 from the current directory with CART medium.
+              # Creating a symlink here ensures PHDST finds the SDST when it
+              # falls back to that path (CFOPEN succeeds instead of ENOENT).
+              ln -sf \"\$SDST_IN\" /work/T.FSEQ1
+              echo \"Symlinked T.FSEQ1 -> \$SDST_IN\"
+
               echo \"=== delphi-nanoaod conversion ===\"
               echo \"  input : \$SDST_IN\"
               echo \"  config: \${CONFIG:-<none>}\"
@@ -234,8 +244,15 @@ jobs:
                 --output /work/output/delphinanoaod_100events.root \
                 --mc
 
-              echo 'PASS: delphinanoaod_100events.root produced'
-              ls -lh /work/output/delphinanoaod_100events.root
+              OUTPUT=/work/output/delphinanoaod_100events.root
+              SIZE=\$(stat -c%s \"\$OUTPUT\" 2>/dev/null || echo 0)
+              echo \"Output file size: \${SIZE} bytes\"
+              if [ \"\$SIZE\" -gt 10000 ]; then
+                echo 'PASS: delphinanoaod_100events.root produced and non-trivial'
+              else
+                echo 'WARN: delphinanoaod_100events.root is very small – likely 0 events processed'
+              fi
+              ls -lh \"\$OUTPUT\"
             "
 
       # ---------------------------------------------------------------- #
