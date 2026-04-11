@@ -178,7 +178,7 @@ jobs:
       #    tool (https://gitlab.cern.ch/delphi/delphi-nanoaod).          #
       #    Requirements (all sourced from CVMFS inside the container):   #
       #      • /cvmfs/delphi.cern.ch/setup.sh   – DELPHI offline env     #
-      #      • ROOT from /cvmfs/sft.cern.ch      – headers + libs        #
+      #      • ROOT 6.34.04 from /cvmfs/sft.cern.ch – headers + libs     #
       #    Allowed to fail; step is skipped when no sdst is present.     #
       # ---------------------------------------------------------------- #
       - name: Convert DELSIM output to NanoAOD ROOT (allow failure)
@@ -200,59 +200,12 @@ jobs:
             -c "
               set -e
 
-              # ── Diagnose what CVMFS looks like inside the container ──
-              echo '=== /cvmfs mount point ==='
-              ls /cvmfs/ 2>/dev/null || echo '  (empty or not mounted)'
-              echo '=== /cvmfs/sft.cern.ch/lcg/views ==='
-              ls /cvmfs/sft.cern.ch/lcg/views/ 2>/dev/null || echo '  (not accessible)'
-              echo '=== LCG_109 sub-dirs (if present) ==='
-              ls /cvmfs/sft.cern.ch/lcg/views/LCG_109/ 2>/dev/null || echo '  (LCG_109 not found)'
-
-              # ── LCG view (provides ROOT + CMake config needed by delphi-nanoaod) ──
-              # LCG_109 was released with gcc13 on el9; try that first, then
-              # fall back to older releases so CI stays green as new views appear.
-              LCG_SOURCED=0
-              for LCG_VIEW in \
-                  /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc15-opt/setup.sh \
-                  /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc13-opt/setup.sh \
-                  /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh \
-                  /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc11-opt/setup.sh \
-                  /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc12-opt/setup.sh; do
-                if [ -f \"\$LCG_VIEW\" ]; then
-                  source \"\$LCG_VIEW\"
-                  echo \"Sourced LCG view: \$LCG_VIEW\"
-                  LCG_SOURCED=1
-                  break
-                fi
-              done
-              if [ \"\$LCG_SOURCED\" -eq 0 ]; then
-                echo '=== Available LCG views on CVMFS ==='
-                ls /cvmfs/sft.cern.ch/lcg/views/ 2>/dev/null || echo '(cannot list views)'
-                echo 'ERROR: No compatible LCG view found – cannot build delphi-nanoaod without ROOT'
-                exit 1
-              fi
-
-              # ── DELPHI offline environment (needed by nypatchy at build time) ──
-              # nypatchy processes skelana.cra which references PHDSTXX.car;
-              # that file is located via paths set by the DELPHI setup script.
-              DELPHI_SETUP=""
-              for _f in \
-                  /cvmfs/delphi.cern.ch/setup.sh \
-                  /cvmfs/delphi.cern.ch/offline/setup.sh \
-                  /cvmfs/delphi.cern.ch/sw/setup.sh; do
-                if [ -f "\$_f" ]; then
-                  DELPHI_SETUP="\$_f"
-                  break
-                fi
-              done
-              if [ -n "\$DELPHI_SETUP" ]; then
-                source "\$DELPHI_SETUP"
-                echo "Sourced DELPHI env: \$DELPHI_SETUP"
-              else
-                echo "WARNING: /cvmfs/delphi.cern.ch setup.sh not found – nypatchy may fail to locate PHDSTXX.car"
-                echo "=== /cvmfs/delphi.cern.ch contents ==="
-                ls /cvmfs/delphi.cern.ch/ 2>/dev/null || echo '  (not accessible)'
-              fi
+              # ── DELPHI Software + ROOT (as recommended by delphi-nanoaod) ──
+              # Source DELPHI offline env first (sets PATCHY paths so nypatchy
+              # can locate PHDSTXX.car when building skelana.cra at cmake time).
+              source /cvmfs/delphi.cern.ch/setup.sh
+              # Source the ROOT release that matches the system compiler.
+              source /cvmfs/sft.cern.ch/lcg/app/releases/ROOT/6.34.04/x86_64-almalinux9.5-gcc115-opt/bin/thisroot.sh
 
               # Clone and build delphi-nanoaod (ROOT is now on CMAKE_PREFIX_PATH)
               git clone https://gitlab.cern.ch/delphi/delphi-nanoaod.git /nanoaod/src
