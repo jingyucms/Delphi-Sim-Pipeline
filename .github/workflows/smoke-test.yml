@@ -45,6 +45,21 @@ jobs:
           cvmfs_repositories: "sft.cern.ch,opendata.cern.ch,delphi.cern.ch"
 
       # ---------------------------------------------------------------- #
+      # 2b. Warm up CVMFS on the host                                    #
+      #    autofs triggers the actual FUSE mount only on first access.   #
+      #    Docker bind-mounts (-v /cvmfs:/cvmfs:ro) snapshot the host   #
+      #    directory at container-start time, so we must touch each repo #
+      #    here – before any docker run – to ensure they are mounted.   #
+      # ---------------------------------------------------------------- #
+      - name: Warm up CVMFS repositories on host
+        run: |
+          echo "=== Host CVMFS: triggering autofs mounts ==="
+          ls /cvmfs/sft.cern.ch/lcg/views/ | head -5 || true
+          ls /cvmfs/opendata.cern.ch/        | head -5 || true
+          ls /cvmfs/delphi.cern.ch/          | head -5 || true
+          echo "=== Host CVMFS warm-up complete ==="
+
+      # ---------------------------------------------------------------- #
       # 3. Detect whether the Docker image needs rebuilding               #
       #    On pull_request: diff the PR against its base branch.  If     #
       #    none of the image-affecting files changed, pull the already-   #
