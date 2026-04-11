@@ -75,7 +75,7 @@ jobs:
             CHANGED=$(git diff --name-only \
               origin/${{ github.base_ref }}...HEAD \
               -- Dockerfile pythia8_generate.cpp Makefile \
-                 run_pipeline.sh kk2f_fadgen_fixer.cpp '*.txt' \
+                 run_pipeline.sh kk2f_fadgen_fixer.cpp *.txt \
               2>/dev/null || true)
             if [ -n "$CHANGED" ]; then
               echo "rebuild=true" >> "$GITHUB_OUTPUT"
@@ -207,7 +207,10 @@ jobs:
               # ── DELPHI Software + ROOT (as recommended by delphi-nanoaod) ──
               # Source DELPHI offline env first (sets PATCHY paths so nypatchy
               # can locate PHDSTXX.car when building skelana.cra at cmake time).
-              source /cvmfs/delphi.cern.ch/setup.sh || true  # EOS FUSE mount may fail if eospublic.cern.ch is unreachable; PATCHY env vars are set before the mount attempt
+              # EOS FUSE mount may fail if eospublic.cern.ch is unreachable;
+              # PATCHY env vars are set before the mount attempt so it is safe to
+              # continue even when the || true branch is taken.
+              source /cvmfs/delphi.cern.ch/setup.sh || true
               # Source the ROOT release that matches the system compiler.
               source /cvmfs/sft.cern.ch/lcg/app/releases/ROOT/6.34.04/x86_64-almalinux9.5-gcc115-opt/bin/thisroot.sh
 
