@@ -232,6 +232,28 @@ jobs:
                 exit 1
               fi
 
+              # ── DELPHI offline environment (needed by nypatchy at build time) ──
+              # nypatchy processes skelana.cra which references PHDSTXX.car;
+              # that file is located via paths set by the DELPHI setup script.
+              DELPHI_SETUP=""
+              for _f in \
+                  /cvmfs/delphi.cern.ch/setup.sh \
+                  /cvmfs/delphi.cern.ch/offline/setup.sh \
+                  /cvmfs/delphi.cern.ch/sw/setup.sh; do
+                if [ -f "\$_f" ]; then
+                  DELPHI_SETUP="\$_f"
+                  break
+                fi
+              done
+              if [ -n "\$DELPHI_SETUP" ]; then
+                source "\$DELPHI_SETUP"
+                echo "Sourced DELPHI env: \$DELPHI_SETUP"
+              else
+                echo "WARNING: /cvmfs/delphi.cern.ch setup.sh not found – nypatchy may fail to locate PHDSTXX.car"
+                echo "=== /cvmfs/delphi.cern.ch contents ==="
+                ls /cvmfs/delphi.cern.ch/ 2>/dev/null || echo '  (not accessible)'
+              fi
+
               # Clone and build delphi-nanoaod (ROOT is now on CMAKE_PREFIX_PATH)
               git clone https://gitlab.cern.ch/delphi/delphi-nanoaod.git /nanoaod/src
               cmake -S /nanoaod/src -B /nanoaod/build -DCMAKE_BUILD_TYPE=Release
