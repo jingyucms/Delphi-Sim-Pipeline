@@ -65,8 +65,17 @@ jobs:
               echo "Image-affecting files changed – will rebuild:"
               echo "$CHANGED"
             else
-              echo "rebuild=false" >> "$GITHUB_OUTPUT"
-              echo "No image-affecting files changed – will pull pre-built image from GHCR."
+              # Files unchanged: only skip the build if a published image
+              # actually exists on GHCR.  On a cold start (no image pushed
+              # yet) the manifest probe fails and we fall back to building.
+              GHCR_IMAGE="ghcr.io/dickychant/delphi-pythia8-pipeline:latest"
+              if docker manifest inspect "$GHCR_IMAGE" > /dev/null 2>&1; then
+                echo "rebuild=false" >> "$GITHUB_OUTPUT"
+                echo "No image-affecting files changed and GHCR image exists – will pull."
+              else
+                echo "rebuild=true" >> "$GITHUB_OUTPUT"
+                echo "No image-affecting files changed but GHCR image not yet available – will build locally."
+              fi
             fi
           else
             echo "rebuild=true" >> "$GITHUB_OUTPUT"
