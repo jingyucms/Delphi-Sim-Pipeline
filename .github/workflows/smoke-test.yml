@@ -203,7 +203,7 @@ jobs:
               # ── DELPHI Software + ROOT (as recommended by delphi-nanoaod) ──
               # Source DELPHI offline env first (sets PATCHY paths so nypatchy
               # can locate PHDSTXX.car when building skelana.cra at cmake time).
-              source /cvmfs/delphi.cern.ch/setup.sh
+              source /cvmfs/delphi.cern.ch/setup.sh || true  # EOS FUSE mount may fail on CI runners (no fuse kernel module); PATCHY env vars are set before the mount attempt
               # Source the ROOT release that matches the system compiler.
               source /cvmfs/sft.cern.ch/lcg/app/releases/ROOT/6.34.04/x86_64-almalinux9.5-gcc115-opt/bin/thisroot.sh
 
