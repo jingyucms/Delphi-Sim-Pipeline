@@ -9,6 +9,12 @@ USER root
 # Set up DELPHI environment variables based on what we found
 ENV PATH="/root/.local/bin:/root/bin:/delphi/releases/almalinux-9-x86_64/latest/scripts:/delphi/scripts:/delphi/releases/almalinux-9-x86_64/latest/bin:/delphi/releases/almalinux-9-x86_64/latest/cern/pro/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:."
 
+# Install runtime libraries required to link/run ROOT 6.34.04 from CVMFS:
+#   tbb       – provides libtbb.so.2 (Intel TBB, used by libImt.so)
+#   xxhash-libs – provides libxxhash.so.0 (used by libCore.so / libROOTNTuple.so)
+#   cmake / git – needed to clone and build delphi-nanoaod inside the container at CI time
+RUN dnf install -y tbb xxhash-libs cmake git && dnf clean all
+
 # Create work directory (replaces your mounted /work)
 RUN mkdir -p /work
 WORKDIR /work
