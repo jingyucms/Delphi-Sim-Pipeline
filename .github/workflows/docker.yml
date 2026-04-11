@@ -2,8 +2,8 @@ name: Build Docker Image
 
 # Triggered on pushes to main and on every pull-request when files that
 # affect the image content change.
-# Can also be triggered manually (workflow_dispatch) to publish to both
-# GHCR and Docker Hub at the same time.
+# Can also be triggered manually (workflow_dispatch) to push to GHCR and
+# Docker Hub; the :latest tag is only applied when running on refs/heads/main.
 on:
   push:
     branches: [main]
@@ -74,7 +74,7 @@ jobs:
           images: ghcr.io/dickychant/delphi-pythia8-pipeline
           tags: |
             type=sha,prefix=
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build (and push to GHCR on main / manual)
         uses: docker/build-push-action@v6
@@ -97,7 +97,7 @@ jobs:
           images: jingyucms/delphi-pythia8-pipeline
           tags: |
             type=sha,prefix=
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Push to Docker Hub (manual only)
         if: github.event_name == 'workflow_dispatch'
@@ -150,7 +150,7 @@ jobs:
           images: ghcr.io/dickychant/delphi-kk2f-pipeline
           tags: |
             type=sha,prefix=
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build (and push to GHCR on main / manual)
         uses: docker/build-push-action@v6
@@ -171,7 +171,7 @@ jobs:
           images: jingyucms/delphi-kk2f-pipeline
           tags: |
             type=sha,prefix=
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Push to Docker Hub (manual only)
         if: github.event_name == 'workflow_dispatch'
