@@ -2,10 +2,11 @@ name: Smoke Test (100 events)
 
 # Run a quick end-to-end Pythia8 generation test on every push and PR.
 # CVMFS is mounted so the container can reach DELPHI / LCG software on
-# /cvmfs/sft.cern.ch if needed (e.g. for the full DELSIM stage or for
-# picking up condition data).  The mandatory step is the Pythia8
-# generator; the DELSIM step is attempted when runsim is found in the
-# image and is allowed to fail gracefully in CI.
+# /cvmfs/sft.cern.ch (LCG stack + ROOT releases),
+# /cvmfs/opendata.cern.ch (DELPHI condition data), and
+# /cvmfs/delphi.cern.ch (DELPHI offline software, needed for NanoAOD).
+# The mandatory step is the Pythia8 generator; the DELSIM and NanoAOD
+# steps are attempted and allowed to fail gracefully in CI.
 on:
   push:
     branches: [main]
@@ -21,30 +22,92 @@ jobs:
     steps:
       # ---------------------------------------------------------------- #
       # 1. Source code                                                     #
+      #    Full history (fetch-depth: 0) is required so the change-       #
+      #    detection step below can diff against the PR base branch.      #
       # ---------------------------------------------------------------- #
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # ---------------------------------------------------------------- #
       # 2. CVMFS                                                           #
-      #    Mounts /cvmfs/sft.cern.ch (LCG / Pythia8 releases) and        #
-      #    /cvmfs/opendata.cern.ch (DELPHI open-data condition files).   #
-      #    The bind-mount is forwarded into the Docker container below    #
-      #    via -v /cvmfs:/cvmfs:ro so the full DELPHI runtime is         #
-      #    accessible when present.                                        #
+      #    Mounts:                                                         #
+      #      sft.cern.ch       – LCG / Pythia8 releases, ROOT binaries   #
+      #      opendata.cern.ch  – DELPHI open-data condition files         #
+      #      delphi.cern.ch    – DELPHI offline software (NanoAOD)        #
+      #    All three are forwarded into Docker containers via             #
+      #    -v /cvmfs:/cvmfs:ro.                                           #
       # ---------------------------------------------------------------- #
       - name: Mount CVMFS
         uses: cvmfs-contrib/github-action-cvmfs@v4
         with:
-          cvmfs_repositories: "sft.cern.ch,opendata.cern.ch"
+          cvmfs_repositories: "sft.cern.ch,opendata.cern.ch,delphi.cern.ch"
 
       # ---------------------------------------------------------------- #
-      # 3. Build the Docker image                                          #
+      # 2b. Warm up CVMFS on the host                                    #
+      #    autofs triggers the actual FUSE mount only on first access.   #
+      #    Docker bind-mounts (-v /cvmfs:/cvmfs:ro) snapshot the host   #
+      #    directory at container-start time, so we must touch each repo #
+      #    here – before any docker run – to ensure they are mounted.   #
+      # ---------------------------------------------------------------- #
+      - name: Warm up CVMFS repositories on host
+        run: |
+          echo "=== Host CVMFS: triggering autofs mounts ==="
+          ls /cvmfs/sft.cern.ch/lcg/views/ | head -5 || true
+          ls /cvmfs/opendata.cern.ch/        | head -5 || true
+          ls /cvmfs/delphi.cern.ch/          | head -5 || true
+          echo "=== Host CVMFS warm-up complete ==="
+          # Load FUSE kernel module so /dev/fuse is available for EOS inside Docker
+          sudo modprobe fuse || true
+
+      # ---------------------------------------------------------------- #
+      # 3. Detect whether the Docker image needs rebuilding               #
+      #    On pull_request: diff the PR against its base branch.  If     #
+      #    none of the image-affecting files changed, pull the already-   #
+      #    published GHCR image and skip the (slow) local build.         #
+      #    On push to main: always rebuild so the cache stays fresh.     #
+      # ---------------------------------------------------------------- #
+      - name: Detect whether Docker image needs rebuilding
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED=$(git diff --name-only \
+              origin/${{ github.base_ref }}...HEAD \
+              -- Dockerfile pythia8_generate.cpp Makefile \
+                 run_pipeline.sh kk2f_fadgen_fixer.cpp *.txt \
+              2>/dev/null || true)
+            if [ -n "$CHANGED" ]; then
+              echo "rebuild=true" >> "$GITHUB_OUTPUT"
+              echo "Image-affecting files changed – will rebuild:"
+              echo "$CHANGED"
+            else
+              # Files unchanged: only skip the build if a published image
+              # actually exists on GHCR.  On a cold start (no image pushed
+              # yet) the manifest probe fails and we fall back to building.
+              GHCR_IMAGE="ghcr.io/dickychant/delphi-pythia8-pipeline:latest"
+              if docker manifest inspect "$GHCR_IMAGE" > /dev/null 2>&1; then
+                echo "rebuild=false" >> "$GITHUB_OUTPUT"
+                echo "No image-affecting files changed and GHCR image exists – will pull."
+              else
+                echo "rebuild=true" >> "$GITHUB_OUTPUT"
+                echo "No image-affecting files changed but GHCR image not yet available – will build locally."
+              fi
+            fi
+          else
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+            echo "Push to main – rebuilding image."
+          fi
+
+      # ---------------------------------------------------------------- #
+      # 4. Build the Docker image  (only when image files changed)        #
       # ---------------------------------------------------------------- #
       - name: Set up Docker Buildx
+        if: steps.changes.outputs.rebuild == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
+        if: steps.changes.outputs.rebuild == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -57,12 +120,22 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ---------------------------------------------------------------- #
-      # 4. Pythia8 generation smoke test                                  #
+      # 4b. Pull pre-built image  (when no image files changed on PR)    #
+      #     Uses the latest image pushed to GHCR by the docker.yml       #
+      #     workflow.  The image is public so no login is required.      #
+      # ---------------------------------------------------------------- #
+      - name: Pull pre-built image from GHCR
+        if: steps.changes.outputs.rebuild == 'false'
+        run: |
+          docker pull ghcr.io/dickychant/delphi-pythia8-pipeline:latest
+          docker tag  ghcr.io/dickychant/delphi-pythia8-pipeline:latest delphi-pipeline:ci
+
+      # ---------------------------------------------------------------- #
+      # 5. Pythia8 generation smoke test                                  #
       #    Runs pythia8_generate directly (no DELSIM) so that the test   #
       #    is fast and self-contained.  We verify that:                   #
       #      • the binary exits 0                                         #
       #      • fort.26 is produced and is non-empty                       #
-      #      • the expected number of events is reported                  #
       # ---------------------------------------------------------------- #
       - name: Run 100-event Pythia8 generation
         run: |
@@ -84,7 +157,7 @@ jobs:
             "
 
       # ---------------------------------------------------------------- #
-      # 5. Optional: full DELSIM pipeline smoke test                      #
+      # 6. Optional: full DELSIM pipeline smoke test                      #
       #    Runs the complete run_pipeline.sh entrypoint (Pythia8 +        #
       #    DELSIM).  This step is allowed to fail in CI; it will succeed  #
       #    only when the DELPHI runtime is fully reachable (e.g. on a    #
@@ -101,8 +174,111 @@ jobs:
             delphi-pipeline:ci \
             100 ci_smoke /work/output
 
+      # ---------------------------------------------------------------- #
+      # 7. Optional: convert DELSIM output to delphi-nanoaod ROOT        #
+      #    Converts simana.sdst → ROOT RNtuple using the delphi-nanoaod  #
+      #    tool (https://gitlab.cern.ch/delphi/delphi-nanoaod).          #
+      #    Requirements (all sourced from CVMFS inside the container):   #
+      #      • /cvmfs/delphi.cern.ch/setup.sh   – DELPHI offline env     #
+      #      • ROOT 6.34.04 from /cvmfs/sft.cern.ch – headers + libs     #
+      #    Allowed to fail; step is skipped when no sdst is present.     #
+      # ---------------------------------------------------------------- #
+      - name: Convert DELSIM output to NanoAOD ROOT (allow failure)
+        continue-on-error: true
+        run: |
+          SDST=$(ls /tmp/ci_output/simana_*.sdst 2>/dev/null | head -1)
+          if [ -z "$SDST" ]; then
+            echo "No simana.sdst found in /tmp/ci_output – skipping NanoAOD conversion."
+            exit 0
+          fi
+          echo "Converting $SDST to delphi-nanoaod ROOT..."
+          mkdir -p /tmp/nanoaod_build
+          docker run --rm \
+            -v /cvmfs:/cvmfs:ro \
+            -v /tmp/ci_output:/work/output \
+            -v /tmp/nanoaod_build:/nanoaod \
+            --device /dev/fuse \
+            --cap-add SYS_ADMIN \
+            --entrypoint bash \
+            delphi-pipeline:ci \
+            -c "
+              set -e
+
+              # ── DELPHI Software + ROOT (as recommended by delphi-nanoaod) ──
+              # Source DELPHI offline env first (sets PATCHY paths so nypatchy
+              # can locate PHDSTXX.car when building skelana.cra at cmake time).
+              # EOS FUSE mount may fail if eospublic.cern.ch is unreachable;
+              # PATCHY env vars are set before the mount attempt so it is safe to
+              # continue even when the || true branch is taken.
+              source /cvmfs/delphi.cern.ch/setup.sh || true
+              # Source the ROOT release that matches the system compiler.
+              source /cvmfs/sft.cern.ch/lcg/app/releases/ROOT/6.34.04/x86_64-almalinux9.5-gcc115-opt/bin/thisroot.sh
+
+              # Clone and build delphi-nanoaod (ROOT is now on CMAKE_PREFIX_PATH)
+              git clone https://gitlab.cern.ch/delphi/delphi-nanoaod.git /nanoaod/src
+              cmake -S /nanoaod/src -B /nanoaod/build -DCMAKE_BUILD_TYPE=Release
+              cmake --build /nanoaod/build --parallel 2
+
+              # Locate the YAML configuration (use the first example found)
+              CONFIG=\$(find /nanoaod/src -name '*.yaml' | head -1)
+              CONFIG_ARG=\${CONFIG:+\"-C \$CONFIG\"}
+
+              # Locate the sdst produced by DELSIM
+              SDST_IN=\$(ls /work/output/simana_*.sdst 2>/dev/null | head -1)
+
+              # ── PHDST T.FSEQ1 workaround ──────────────────────────────────
+              # delphi-nanoaod passes --pdlinput to PHDST as a steering text
+              # file. When the argument is a binary SDST, PHDST fails to parse
+              # it and falls back to opening the default FPACK sequential input
+              # file T.FSEQ1 from the current directory with CART medium.
+              # Creating a symlink here ensures PHDST finds the SDST when it
+              # falls back to that path (CFOPEN succeeds instead of ENOENT).
+              ln -sf \"\$SDST_IN\" /work/T.FSEQ1
+              echo \"Symlinked T.FSEQ1 -> \$SDST_IN\"
+
+              echo \"=== delphi-nanoaod conversion ===\"
+              echo \"  input : \$SDST_IN\"
+              echo \"  config: \${CONFIG:-<none>}\"
+              echo \"  output: /work/output/delphinanoaod_100events.root\"
+
+              /nanoaod/build/delphi-nanoaod/delphi-nanoaod \
+                --pdlinput \"\$SDST_IN\" \
+                \$CONFIG_ARG \
+                --output /work/output/delphinanoaod_100events.root \
+                --mc
+
+              OUTPUT=/work/output/delphinanoaod_100events.root
+              SIZE=\$(stat -c%s \"\$OUTPUT\" 2>/dev/null || echo 0)
+              echo \"Output file size: \${SIZE} bytes\"
+              if [ \"\$SIZE\" -gt 10000 ]; then
+                echo 'PASS: delphinanoaod_100events.root produced and non-trivial'
+              else
+                echo 'WARN: delphinanoaod_100events.root is very small – likely 0 events processed'
+              fi
+              ls -lh \"\$OUTPUT\"
+            "
+
+      # ---------------------------------------------------------------- #
+      # 8. Report and upload artifacts                                     #
+      #    Always runs so CI stays informative even when optional steps   #
+      #    above fail.  The delphinanoaod ROOT file (or, if conversion    #
+      #    was skipped, the raw simana.sdst) is retained for 1 day so    #
+      #    it can be downloaded and inspected from the Actions summary.   #
+      # ---------------------------------------------------------------- #
       - name: Report full pipeline output
         if: always()
         run: |
           echo "=== Full pipeline output files ==="
           ls -lh /tmp/ci_output/ 2>/dev/null || echo "(no output files — DELSIM step skipped or failed)"
+
+      - name: Upload pipeline output artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-output-${{ github.run_number }}
+          # Uploads the NanoAOD ROOT file when conversion succeeded, or
+          # the raw simana.sdst when only DELSIM ran, so the job always
+          # produces something inspectable when the full chain ran.
+          path: /tmp/ci_output/
+          retention-days: 1
+          if-no-files-found: warn
