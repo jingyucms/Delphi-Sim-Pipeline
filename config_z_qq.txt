@@ -14,4 +14,4 @@ WeakSingleBoson:ffbar2gmZ = on
 23:onIfAny = 1 2 3 4 5  # Enable only quark decays (u,d,s,c,b)
 
 # Dire shower configuration
-PartonShowers:model = 3
+PartonShowers:model = 1 

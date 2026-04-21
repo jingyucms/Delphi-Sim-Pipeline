@@ -18,8 +18,8 @@ WeakSingleBoson:ffbar2gmZ = on
 23:onIfAny = 15
 
 # Parton shower settings
-PartonLevel:ISR = on
-PartonLevel:FSR = on
+# PartonLevel:ISR = on
+# PartonLevel:FSR = on
 
 # Hadron level processing (for tau decay products)
 HadronLevel:all = on
