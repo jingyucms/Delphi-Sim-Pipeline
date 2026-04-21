@@ -30,15 +30,25 @@ private:
                     status = 2;
                 }
             }
-            // Status 51-60: FSR products - accept leptons but NOT from photon conversion
+            // Status 51-60: FSR products - accept recoiled leptons, and keep
+            // FSR photons off charged leptons as final state so DELSIM actually
+            // propagates them through the ECAL (required for Z→ℓℓγ dead-cone
+            // analysis — see CLAUDE.md).
             else if (pythia8_status >= 51 && pythia8_status <= 60) {
                 int abs_pdg = abs(pdg_id);
                 int abs_mother = abs(mother_id);
-                
+
                 // Accept leptons (e, μ) ONLY if mother is NOT a photon
                 if ((abs_pdg == 11 || abs_pdg == 13) && abs_mother != 22) {
                     status = 1;  // Primary lepton after FSR
-                } else {
+                }
+                // FSR photon radiated off a charged lepton (e, μ, τ):
+                // keep as final-state for DELSIM simulation.
+                else if (abs_pdg == 22 &&
+                         (abs_mother == 11 || abs_mother == 13 || abs_mother == 15)) {
+                    status = 1;
+                }
+                else {
                     status = 21;  // Photon conversion products or other
                 }
             }
@@ -192,18 +202,26 @@ public:
         }
         
         // Count different particle types for validation
-        int nFinal = 0, nIntermediate = 0, nBeam = 0, nV0 = 0;
+        int nFinal = 0, nIntermediate = 0, nBeam = 0, nV0 = 0, nFSRgamma = 0;
         for (int idx : validParticles) {
             int mother_pdg = 0;
             if (event[idx].mother1() > 0 && event[idx].mother1() < event.size()) {
                 mother_pdg = event[event[idx].mother1()].id();
             }
-            
+
             int status = convertToJetsetStatus(event[idx].status(), event[idx].id(), mother_pdg);
             if (status == 1) nFinal++;
             else if (status == 2 || status == 11) nIntermediate++;
             else if (status == 21) nBeam++;
             else if (status == 4) nV0++;
+
+            // FSR photon off a charged lepton, now kept as final state.
+            if (status == 1 && event[idx].id() == 22) {
+                int abs_mother = abs(mother_pdg);
+                if (abs_mother == 11 || abs_mother == 13 || abs_mother == 15) {
+                    nFSRgamma++;
+                }
+            }
         }
         
         // Ensure we have final state particles (DELSIM needs these)
@@ -213,8 +231,9 @@ public:
         }
         
         std::cout << "Event " << eventNum << " ACCEPTED: " << n << " particles ("
-                 << nFinal << " final, " << nIntermediate << " intermediate, " 
-                 << nBeam << " beam, " << nV0 << " V0)" << std::endl;
+                 << nFinal << " final, " << nIntermediate << " intermediate, "
+                 << nBeam << " beam, " << nV0 << " V0, "
+                 << nFSRgamma << " FSR-γ from ℓ)" << std::endl;
         
         // Write the event
         int record_size = 4 + n * (5*4 + 5*4 + 5*4);
