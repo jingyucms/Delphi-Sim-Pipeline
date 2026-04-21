@@ -4,10 +4,11 @@ FROM docker.io/jingyucms/delphi-kk2f:v2.12
 USER root
 WORKDIR /work
 
-# Copy updated pipeline script and fixer
+# Copy updated pipeline script and fixer source, then compile the fixer
 COPY run_kk2f_pipeline.sh /work/
-COPY kk2f_fadgen_fixer /work/
-RUN chmod +x /work/run_kk2f_pipeline.sh /work/kk2f_fadgen_fixer
+COPY kk2f_fadgen_fixer.cpp /work/
+RUN g++ -std=c++11 -O2 -o /work/kk2f_fadgen_fixer /work/kk2f_fadgen_fixer.cpp \
+    && chmod +x /work/run_kk2f_pipeline.sh /work/kk2f_fadgen_fixer
 
 # Fix missing DelKK.inp symlink (doesn't survive Docker copy)
 RUN cd /work/kk2f_build && ln -s kk2f.inp DelKK.inp
