@@ -71,7 +71,7 @@ jobs:
         id: meta-ghcr
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/dickychant/delphi-pythia8-pipeline
+          images: ghcr.io/${{ github.repository_owner }}/delphi-pythia8-pipeline
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -94,7 +94,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: docker/metadata-action@v5
         with:
-          images: jingyucms/delphi-pythia8-pipeline
+          images: jingyucms/delphi-pythia8
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -147,7 +147,7 @@ jobs:
         id: meta-ghcr
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/dickychant/delphi-kk2f-pipeline
+          images: ghcr.io/${{ github.repository_owner }}/delphi-kk2f-pipeline
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
