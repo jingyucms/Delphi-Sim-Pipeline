@@ -106,3 +106,10 @@ else
     echo "=== DELSIM did not produce simana.sdst; check $WORK for logs ==="
     exit 1
 fi
+
+# Preserve the DELANA full-DST alongside. It carries per-track 3-D track
+# elements (PA.TETP / TEID / TEOD / TEFA / TEFB) that the shortDST drops.
+if [ -f "$WORK/simana.fadana" ]; then
+    mv "$WORK/simana.fadana" "$OUT_DIR/simana_${JOB_ID}.fadana"
+    echo "=== DONE: $OUT_DIR/simana_${JOB_ID}.fadana (full DST) ==="
+fi
