@@ -1,5 +1,5 @@
 universe                = docker
-docker_image            = registry.cern.ch/docker.io/jingyucms/delphi-pythia8:v2.6
+docker_image            = registry.cern.ch/docker.io/jingyucms/delphi-pythia8:latest
 
 # Use timestamp + Process to create unique job IDs
 # This ensures no conflicts across multiple batch submissions
