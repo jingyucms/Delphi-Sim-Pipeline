@@ -13,9 +13,17 @@ WeakSingleBoson:ffbar2gmZ = on
 # Z boson decay settings - turn off all decay modes first
 23:onMode = off
 
-# Enable only muon decay mode for Z boson
+# Enable only electron decay mode for Z boson
 # PDG code 11 = electron
 23:onIfAny = 11
+
+# Parton shower settings — FSR is required to populate the Z → eeγ branch.
+# ISR is on for completeness; it primarily emits beam-collinear photons.
+PartonLevel:ISR = on
+PartonLevel:FSR = on
+
+# Hadron level processing (needed so FSR off the lepton line is performed).
+HadronLevel:all = on
 
 # Print some information
 Print:quiet = off

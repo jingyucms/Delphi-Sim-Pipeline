@@ -17,6 +17,14 @@ WeakSingleBoson:ffbar2gmZ = on
 # PDG code 13 = muon
 23:onIfAny = 13
 
+# Parton shower settings — FSR is required to populate the Z → μμγ branch.
+# ISR is on for completeness; it primarily emits beam-collinear photons.
+PartonLevel:ISR = on
+PartonLevel:FSR = on
+
+# Hadron level processing (needed so FSR off the lepton line is performed).
+HadronLevel:all = on
+
 # Print some information
 Print:quiet = off
 Init:showChangedSettings = on
