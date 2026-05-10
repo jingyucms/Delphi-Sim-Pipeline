@@ -195,9 +195,19 @@ if [ -f "simana.sdst" ]; then
     echo "✓ Moved simana.sdst"
 fi
 
-# Clean up large unnecessary files to save space
+# Also preserve the DELANA full-DST output (simana.fadana). It carries the
+# per-track 3-D hits (PA.TETP / TEID / TEOD / TEFA / TEFB) that the shortDST
+# (.sdst) throws away — needed by downstream hit-based refitting / particle-
+# flow analyses. The fadana is small (~0.5 MB for 30 events) compared to the
+# raw fadsim it is derived from, so cost is modest.
+if [ -f "simana.fadana" ]; then
+    mv simana.fadana "${OUTPUT_DIR}/simana_${JOB_ID}.fadana"
+    echo "✓ Moved simana.fadana"
+fi
+
+# Clean up the big raw DELSIM simulation file (fadsim) and the scratch bits.
 echo "Step 6: Cleaning up large files..."
-rm -f simana.fadsim simana.fadana my_events.fadgen *.out *.log fort.* FOR*
+rm -f simana.fadsim my_events.fadgen *.out *.log fort.* FOR*
 echo "✓ Cleaned up unnecessary files"
 
 echo "=== Pipeline completed successfully ==="
