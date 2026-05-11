@@ -69,6 +69,14 @@ DELSIM_VERSION=${5:-"v94c"}
 E_BEAM=${6:-"45.625"}
 PYTHIA_BUFFER=${PYTHIA_BUFFER:-100}
 PYTHIA_EVENTS=$((NUM_EVENTS + PYTHIA_BUFFER))
+# Beam-spot override for DELSIM (XYZP centroid, XYZW widths, both in cm).
+# Default centroid is the weighted-mean BS from the 94c data BS table
+# in delphi-improve-reco/diagnostics/bs_table_94c_Y13709.csv (3346
+# events across 26 runs); widths keep the canonical 94C-MC values from
+# simqqbar.tit so we don't fold the vertex-fit resolution into the
+# simulated beam length. Override per-job with XYZP / XYZW env vars.
+XYZP="${XYZP:--0.3062 0.1492 -0.7684}"
+XYZW="${XYZW:-0.012 0.0005 0.74}"
 
 echo "DELSIM version: $DELSIM_VERSION"
 echo "Beam energy: $E_BEAM"
@@ -188,8 +196,22 @@ if [ $DELSIM_EVENTS -lt 1 ]; then
 fi
 
 echo "Running DELSIM with $DELSIM_EVENTS events (Pythia produced $PYTHIA_EVENTS) and NRUN=$DELSIM_NRUN..."
+echo "  XYZP = $XYZP"
+echo "  XYZW = $XYZW"
+# Build a local DELSIM title file from the v94c template with our
+# XYZP/XYZW overrides. -STITL makes runsim copy this verbatim to
+# simlocal.title (FORTRAN unit 15) instead of regenerating defaults
+# via MakeSimTitle().
+TMPL=${DELSIM_DAT:-/cvmfs/delphi.cern.ch/releases/centos-x86_64-7/simana/$DELSIM_VERSION/dat}/simqqbar.tit
+if [ ! -r "$TMPL" ]; then
+    echo "ERROR: title template not readable: $TMPL" >&2
+    exit 1
+fi
+sed -e "s/^XYZP .*/XYZP    $XYZP/" \
+    -e "s/^XYZW .*/XYZW    $XYZW/" \
+    "$TMPL" > simlocal.tit
 # Run runsim
-runsim -VERSION $DELSIM_VERSION -LABO CERN -NRUN $DELSIM_NRUN -EBEAM $E_BEAM -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen
+runsim -VERSION $DELSIM_VERSION -LABO CERN -NRUN $DELSIM_NRUN -EBEAM $E_BEAM -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen -STITL simlocal.tit
 
 # Step 5: Collect outputs (move instead of copy to save disk space)
 echo "Step 5: Collecting outputs..."
