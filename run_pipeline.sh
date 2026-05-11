@@ -196,22 +196,40 @@ if [ $DELSIM_EVENTS -lt 1 ]; then
 fi
 
 echo "Running DELSIM with $DELSIM_EVENTS events (Pythia produced $PYTHIA_EVENTS) and NRUN=$DELSIM_NRUN..."
-echo "  XYZP = $XYZP"
-echo "  XYZW = $XYZW"
-# Build a local DELSIM title file from the v94c template with our
-# XYZP/XYZW overrides. -STITL makes runsim copy this verbatim to
-# simlocal.title (FORTRAN unit 15) instead of regenerating defaults
-# via MakeSimTitle().
-TMPL=${DELSIM_DAT:-/cvmfs/delphi.cern.ch/releases/centos-x86_64-7/simana/$DELSIM_VERSION/dat}/simqqbar.tit
-if [ ! -r "$TMPL" ]; then
-    echo "ERROR: title template not readable: $TMPL" >&2
-    exit 1
+if [ -n "$XYZP" ] || [ -n "$XYZW" ]; then
+    echo "  XYZP = $XYZP"
+    echo "  XYZW = $XYZW"
+    echo "  (BS-override mode: prerun -> edit simlocal.title -> re-run with -STITL)"
+    # Step A: prerun without -STITL so runsim's MakeSimTitle() can
+    # substitute its placeholders ({nrun}, IGENER, ISEEDG, NEVMAX, ...)
+    # into a complete simlocal.title. -STITL alone copies the raw
+    # template, leaves placeholders unfilled, and DELSIM ends up
+    # running its internal qq generator (IGENER=15, NEVMAX=450)
+    # instead of our fadgen input.
+    echo "--- Step 4a: prerun (generate simlocal.title) ---"
+    runsim -VERSION $DELSIM_VERSION -LABO CERN -NRUN $DELSIM_NRUN -EBEAM $E_BEAM -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen 2>&1 | tail -3
+    if [ ! -f simlocal.title ]; then
+        echo "ERROR: prerun did not produce simlocal.title" >&2
+        exit 1
+    fi
+    # Step B: edit XYZP/XYZW into a copy of the resolved title.
+    cp simlocal.title simlocal_edit.title
+    [ -n "$XYZP" ] && sed -i "s|^XYZP[[:space:]].*|XYZP    $XYZP|" simlocal_edit.title
+    [ -n "$XYZW" ] && sed -i "s|^XYZW[[:space:]].*|XYZW    $XYZW|" simlocal_edit.title
+    echo "--- BS override applied ---"
+    grep -E '^(XYZP|XYZW)[[:space:]]' simlocal_edit.title
+    # Step C: clean prerun artifacts and re-run with -STITL.
+    rm -f simana.fadsim simana.sdst simana.fadana FOR* fort.* \
+          simdec.data igtots.logn delsimrn.out88 scanlist.sumr \
+          T.FSEQ1 simlocal.title
+    ln -sf my_events.fadgen fort.18
+    echo "--- Step 4b: main run with edited title ---"
+    runsim -VERSION $DELSIM_VERSION -LABO CERN -NRUN $DELSIM_NRUN -EBEAM $E_BEAM -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen -STITL simlocal_edit.title
+else
+    echo "  (default v94c BS centroid -- no override)"
+    # Run runsim
+    runsim -VERSION $DELSIM_VERSION -LABO CERN -NRUN $DELSIM_NRUN -EBEAM $E_BEAM -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen
 fi
-sed -e "s/^XYZP .*/XYZP    $XYZP/" \
-    -e "s/^XYZW .*/XYZW    $XYZW/" \
-    "$TMPL" > simlocal.tit
-# Run runsim
-runsim -VERSION $DELSIM_VERSION -LABO CERN -NRUN $DELSIM_NRUN -EBEAM $E_BEAM -NEVMAX $DELSIM_EVENTS -gext my_events.fadgen -STITL simlocal.tit
 
 # Step 5: Collect outputs (move instead of copy to save disk space)
 echo "Step 5: Collecting outputs..."
