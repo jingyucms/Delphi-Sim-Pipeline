@@ -30,26 +30,28 @@ private:
                     status = 2;
                 }
             }
-            // Status 51-60: FSR products - accept recoiled leptons, and keep
-            // FSR photons off charged leptons as final state so DELSIM actually
-            // propagates them through the ECAL (required for Z→ℓℓγ dead-cone
-            // analysis — see CLAUDE.md).
+            // Shower-emitted photons (ISR 41-49 or FSR 51-60): match the KK2F
+            // convention in KK2f/HepEvt.f::HepEvt_Fill, which writes every
+            // radiated photon (ISR / FSR / beamstrahlung) into LUJETS with
+            // K(I,1) = 1 so DELSIM propagates it through GEANT3. Most exit
+            // the beampipe unmeasured but the visible-energy bookkeeping
+            // stays consistent (DELSIM had been silently dropping these when
+            // they landed at status=2 via the 21-80 catch-all below, leaving
+            // the event with phantom missing energy).
+            else if (abs(pdg_id) == 22 &&
+                     pythia8_status >= 41 && pythia8_status <= 60) {
+                status = 1;
+            }
+            // Status 51-60 non-photon: accept recoiled charged leptons after
+            // FSR (the photon case is already handled above). A lepton with a
+            // photon mother is a γ -> ℓℓ conversion product; skip those.
             else if (pythia8_status >= 51 && pythia8_status <= 60) {
                 int abs_pdg = abs(pdg_id);
                 int abs_mother = abs(mother_id);
-
-                // Accept leptons (e, μ) ONLY if mother is NOT a photon
                 if ((abs_pdg == 11 || abs_pdg == 13) && abs_mother != 22) {
-                    status = 1;  // Primary lepton after FSR
-                }
-                // FSR photon radiated off a charged lepton (e, μ, τ):
-                // keep as final-state for DELSIM simulation.
-                else if (abs_pdg == 22 &&
-                         (abs_mother == 11 || abs_mother == 13 || abs_mother == 15)) {
                     status = 1;
-                }
-                else {
-                    status = 21;  // Photon conversion products or other
+                } else {
+                    status = 21;
                 }
             }
             else if (pythia8_status >= 81 && pythia8_status <= 99) status = 1;
