@@ -417,7 +417,26 @@ int main(int argc, char* argv[]) {
     // Disable Anti-Xi0 decay (PDG ID: -3322)
     pythia.readString("-3322:mayDecay = false");
     std::cout << "  Anti-Xi0 (-3322) decay disabled" << std::endl;
-    
+
+    // Disable Sigma- decay (PDG ID: 3112) and its antiparticle.
+    // ctau(Sigma-) ~ 4.4 cm — short enough that Pythia decays it by default,
+    // but in DELPHI it should be V0-tagged so DELSIM handles the decay.
+    pythia.readString("3112:mayDecay = false");
+    pythia.readString("-3112:mayDecay = false");
+    std::cout << "  Sigma- (3112 / -3112) decay disabled" << std::endl;
+
+    // Disable Sigma+ decay (PDG ID: 3222) and its antiparticle.
+    // ctau(Sigma+) ~ 2.4 cm.
+    pythia.readString("3222:mayDecay = false");
+    pythia.readString("-3222:mayDecay = false");
+    std::cout << "  Sigma+ (3222 / -3222) decay disabled" << std::endl;
+
+    // Disable Xi- decay (PDG ID: 3312) and its antiparticle.
+    // ctau(Xi-) ~ 4.9 cm.
+    pythia.readString("3312:mayDecay = false");
+    pythia.readString("-3312:mayDecay = false");
+    std::cout << "  Xi- (3312 / -3312) decay disabled" << std::endl;
+
     if (!pythia.init()) {
         std::cerr << "PYTHIA initialization failed!" << std::endl;
         return -1;
