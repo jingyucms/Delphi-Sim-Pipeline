@@ -60,11 +60,18 @@ private:
             status = 21;
         }
         
-        // V0 handling
+        // V0 handling — match kk2f_fadgen_fixer.cpp isV0Particle().
+        // K0L (130) is detector-stable (ctau ~ 15.3 m, P(decay in tracker)
+        // ~1%) and must NOT be V0-tagged. Sigma+/- and Xi- have ctau of
+        // a few cm and DO need V0 treatment so DELSIM decays them.
         if (status == 1) {
             int abs_pdg = abs(pdg_id);
-            if (abs_pdg == 310 || abs_pdg == 130 ||
-                abs_pdg == 3122 || abs_pdg == 3322) {
+            if (abs_pdg == 310  ||   // K0_S
+                abs_pdg == 3122 ||   // Lambda
+                abs_pdg == 3112 ||   // Sigma-
+                abs_pdg == 3222 ||   // Sigma+
+                abs_pdg == 3312 ||   // Xi-
+                abs_pdg == 3322) {   // Xi0
                 return 4;
             }
         }
