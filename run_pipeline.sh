@@ -57,26 +57,43 @@ fi
 echo "✓ DELPHI environment configured, runsim found at: $(which runsim)"
 
 # Updated parameter handling with config file support.
-# NUM_EVENTS is the DELSIM target. Pythia over-generates by a fixed buffer
-# (PYTHIA_BUFFER) so that DELSIM still reaches NEVMAX even if a handful of
-# generator events are skipped — otherwise runsim waits for events that
-# never arrive and never exits.
+# NUM_EVENTS is the DELSIM target. Pythia over-generates by PYTHIA_BUFFER
+# events (default = 10% of NUM_EVENTS, rounded up) so DELSIM still reaches
+# NEVMAX even if a handful of generator events are skipped — otherwise
+# runsim waits for events that never arrive and never exits.
 NUM_EVENTS=${1:-3000}
 JOB_ID=${2:-$(date +%Y%m%d_%H%M%S)}
 OUTPUT_DIR=${3:-/work/output}
 CONFIG_FILE=${4:-""}
 DELSIM_VERSION=${5:-"v94c"}
 E_BEAM=${6:-"45.625"}
-PYTHIA_BUFFER=${PYTHIA_BUFFER:-100}
+PYTHIA_BUFFER=${PYTHIA_BUFFER:-$(( (NUM_EVENTS + 9) / 10 ))}
+[ "$PYTHIA_BUFFER" -lt 1 ] && PYTHIA_BUFFER=1
 PYTHIA_EVENTS=$((NUM_EVENTS + PYTHIA_BUFFER))
 # Beam-spot override for DELSIM (XYZP centroid, XYZW widths, both in cm).
-# Default centroid is the weighted-mean BS from the 94c data BS table
-# in delphi-improve-reco/diagnostics/bs_table_94c_Y13709.csv (3346
-# events across 26 runs); widths keep the canonical 94C-MC values from
-# simqqbar.tit so we don't fold the vertex-fit resolution into the
-# simulated beam length. Override per-job with XYZP / XYZW env vars.
-XYZP="${XYZP:--0.3062 0.1492 -0.7684}"
-XYZW="${XYZW:-0.012 0.0005 0.74}"
+# Per-period defaults from data BS measurements; widths converted µm -> cm:
+#   94c : centroid (-0.29911, 0.14225, -0.6121) cm
+#         widths   (105.2, 51.2, 1349.0) µm = (0.01052, 0.00512, 0.1349) cm
+#   95d : centroid (-0.32026, 0.11079, -0.7589) cm
+#         widths   (120.8, 121.9, 3010.2) µm = (0.01208, 0.01219, 0.30102) cm
+# Override per-job with XYZP / XYZW env vars.
+case "$DELSIM_VERSION" in
+    v94c)
+        XYZP_DEFAULT="-0.29911 0.14225 -0.6121"
+        XYZW_DEFAULT="0.01052 0.00512 0.1349"
+        ;;
+    v95d)
+        XYZP_DEFAULT="-0.32026 0.11079 -0.7589"
+        XYZW_DEFAULT="0.01208 0.01219 0.30102"
+        ;;
+    *)
+        echo "WARNING: no per-period BS defaults for DELSIM_VERSION=$DELSIM_VERSION; falling back to 94c values" >&2
+        XYZP_DEFAULT="-0.29911 0.14225 -0.6121"
+        XYZW_DEFAULT="0.01052 0.00512 0.1349"
+        ;;
+esac
+XYZP="${XYZP:-$XYZP_DEFAULT}"
+XYZW="${XYZW:-$XYZW_DEFAULT}"
 
 echo "DELSIM version: $DELSIM_VERSION"
 echo "Beam energy: $E_BEAM"
