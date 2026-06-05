@@ -1,4 +1,7 @@
 #include "Pythia8/Pythia.h"
+#include "Pythia8Plugins/HepMC3.h"
+#include "HepMC3/WriterAscii.h"
+#include "HepMC3/GenEvent.h"
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -324,9 +327,10 @@ int main(int argc, char* argv[]) {
         config_file = argv[2];
     }
     
-    // Generate unique random seed for each run (constrained to Pythia8 limits)
-    unsigned long raw_seed = static_cast<unsigned long>(std::time(nullptr)) + static_cast<unsigned long>(getpid());
-    unsigned long seed = raw_seed % 900000000;  // Keep within Pythia8's seed range
+    // CLOSURE TEST: fixed seed for reproducibility. Both fort.26 and the HepMC3
+    // are produced from the SAME events in this one run, so the seed only picks
+    // which events — it does not affect the A-vs-B comparison.
+    unsigned long seed = 12345;
     
     Pythia pythia;
     
@@ -444,7 +448,12 @@ int main(int argc, char* argv[]) {
     }
     
     EventWriter writer("fort.26");
-    
+
+    // CLOSURE TEST: emit the SAME accepted events as HepMC3, so hepmc2fadgen can
+    // be run on them and its fort.26 compared against EventWriter's output above.
+    Pythia8ToHepMC toHepMC;
+    HepMC3::WriterAscii hepmcOut("events.hepmc3");
+
     int events_generated = 0;  // Count how many PYTHIA generated
     int events_accepted = 0;   // Count how many we accepted
     int max_attempts = target_events * 3;  // Maximum attempts
@@ -461,6 +470,11 @@ int main(int argc, char* argv[]) {
         
         if (writer.writeEvent(pythia.event, events_generated)) {
             events_accepted++;
+            // Mirror the SAME event into HepMC3 (only accepted ones, to keep the
+            // two outputs aligned 1:1 by event index).
+            HepMC3::GenEvent ge(HepMC3::Units::GEV, HepMC3::Units::MM);
+            toHepMC.fill_next_event(pythia, &ge);
+            hepmcOut.write_event(ge);
         }
         
         // Show progress
@@ -478,6 +492,7 @@ int main(int argc, char* argv[]) {
         std::cout << "  Rejection rate: " << std::fixed << std::setprecision(1) 
                   << (100.0 * (events_generated - events_accepted) / events_generated) << "%" << std::endl;
     }
-    
+
+    hepmcOut.close();
     return 0;
 }
