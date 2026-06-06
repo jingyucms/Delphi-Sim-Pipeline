@@ -1,37 +1,45 @@
 name: Build Docker Image
 
 # Triggered on pushes to main and on every pull-request when files that
-# affect the image content change.
-# Can also be triggered manually (workflow_dispatch) to push to GHCR and
-# Docker Hub; the :latest tag is only applied when running on refs/heads/main.
+# affect the image content change. Paths updated after the per-generator reorg
+# (Dockerfiles + sources now live under generators/<gen>/; hepmc2fadgen.cpp and
+# run_delsim_only.sh are baked into the pythia8 image from the repo root).
+# Can also be triggered manually (workflow_dispatch) to push to GHCR and Docker Hub;
+# the :latest tag is only applied when running on refs/heads/main.
 on:
   push:
     branches: [main]
     paths:
-      - Dockerfile
-      - Dockerfile.kk2f
-      - pythia8_generate.cpp
-      - Makefile
-      - run_pipeline.sh
-      - run_kk2f_pipeline.sh
-      - kk2f_fadgen_fixer.cpp
-      - '*.txt'
+      - generators/pythia8/Dockerfile
+      - generators/kk2f/Dockerfile.kk2f
+      - generators/pythia8/pythia8_generate.cpp
+      - generators/pythia8/Makefile
+      - generators/pythia8/run_pipeline.sh
+      - generators/kk2f/run_kk2f_pipeline.sh
+      - generators/kk2f/kk2f_fadgen_fixer.cpp
+      - 'generators/pythia8/*.txt'
+      - hepmc2fadgen.cpp
+      - run_delsim_only.sh
+      - .github/workflows/docker.yml
   pull_request:
     paths:
-      - Dockerfile
-      - Dockerfile.kk2f
-      - pythia8_generate.cpp
-      - Makefile
-      - run_pipeline.sh
-      - run_kk2f_pipeline.sh
-      - kk2f_fadgen_fixer.cpp
-      - '*.txt'
+      - generators/pythia8/Dockerfile
+      - generators/kk2f/Dockerfile.kk2f
+      - generators/pythia8/pythia8_generate.cpp
+      - generators/pythia8/Makefile
+      - generators/pythia8/run_pipeline.sh
+      - generators/kk2f/run_kk2f_pipeline.sh
+      - generators/kk2f/kk2f_fadgen_fixer.cpp
+      - 'generators/pythia8/*.txt'
+      - hepmc2fadgen.cpp
+      - run_delsim_only.sh
+      - .github/workflows/docker.yml
   # Manual trigger: publishes to both GHCR and Docker Hub.
   workflow_dispatch:
 
 jobs:
   # ------------------------------------------------------------------ #
-  #  Pythia8 pipeline image  (Dockerfile)                               #
+  #  Pythia8 pipeline image  (generators/pythia8/Dockerfile)            #
   # ------------------------------------------------------------------ #
   build-pythia8:
     name: Build delphi-pythia8-pipeline image
@@ -79,8 +87,10 @@ jobs:
       - name: Build (and push to GHCR on main / manual)
         uses: docker/build-push-action@v6
         with:
+          # context = repo root so the image can bake the shared hepmc2fadgen.cpp +
+          # run_delsim_only.sh alongside the per-generator pythia8 sources.
           context: .
-          file: Dockerfile
+          file: generators/pythia8/Dockerfile
           # Push on merges to main or manual dispatch; PRs only build.
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-ghcr.outputs.tags }}
@@ -104,7 +114,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
+          file: generators/pythia8/Dockerfile
           push: true
           tags: ${{ steps.meta-dockerhub.outputs.tags }}
           labels: ${{ steps.meta-dockerhub.outputs.labels }}
@@ -112,7 +122,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ------------------------------------------------------------------ #
-  #  KK2f pipeline image  (Dockerfile.kk2f)                            #
+  #  KK2f pipeline image  (generators/kk2f/Dockerfile.kk2f)            #
   # ------------------------------------------------------------------ #
   build-kk2f:
     name: Build delphi-kk2f-pipeline image
@@ -156,7 +166,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.kk2f
+          file: generators/kk2f/Dockerfile.kk2f
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-ghcr.outputs.tags }}
           labels: ${{ steps.meta-ghcr.outputs.labels }}
@@ -178,7 +188,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.kk2f
+          file: generators/kk2f/Dockerfile.kk2f
           push: true
           tags: ${{ steps.meta-dockerhub.outputs.tags }}
           labels: ${{ steps.meta-dockerhub.outputs.labels }}
