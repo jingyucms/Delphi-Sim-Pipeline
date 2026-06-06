@@ -21,3 +21,22 @@ test_kk2f_output/
 
 # Docker tar files
 *.tar
+
+# Container images (multi-GB, never tracked)
+*.sif
+*.sif.old-*
+
+# Logs and scratch
+*.log
+docker_stderror
+
+# Local test / run artifacts
+test_fort.*
+test_v2.16/
+dag/
+rescue/
+
+# Large vendored KK2F build trees
+kk2f_build/KK-v4-14/
+kk2f_build/pythia6156/
+kk2f_build/delfor/
