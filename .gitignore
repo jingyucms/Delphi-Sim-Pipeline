@@ -52,11 +52,17 @@ fort26_conv
 
 # Generator run artifacts (Sherpa/Herwig/Whizard scratch)
 **/sherpa_run/
+**/herwig_run/
+**/whizard_run/
 **/Process/
 **/Results.zip
 **/Results.zip~
 **/Settings_Report/
 References.tex
 sherpa_events
+herwig_events
+whizard_events*
+*.run
 *.hepmc3
 *.hepmc
+*.log

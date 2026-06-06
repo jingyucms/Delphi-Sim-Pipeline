@@ -1,0 +1,35 @@
+# M3 / Herwig7 7.3.0 (key4hep) — e+e- -> gamma/Z -> hadrons at the Z pole.
+# Based on Herwig's shipped LEP.in + snippets/HepMC.in. MINIMAL first draft: prove Herwig
+# runs in key4hep and emits HepMC3 that hepmc2fadgen ingests. V0-stability is layered in
+# after the audit (same approach as the Sherpa path).
+#
+# Run (no container):
+#   source /cvmfs/sw.hsf.org/key4hep/setup.sh
+#   Herwig read generators/herwig/LEP-DELPHI.in     # -> LEP-DELPHI.run in CWD
+#   Herwig run LEP-DELPHI.run -N 20                  # -> herwig_events HepMC3 file
+
+read snippets/EECollider.in
+read snippets/HepMC.in
+
+cd /Herwig/MatrixElements
+insert SubProcess:MatrixElements 0 MEee2gZ2qq
+
+cd /Herwig/Generators
+set EventGenerator:EventHandler:LuminosityFunction:Energy 91.187
+
+# Keep the V0 set stable so they reach DELSIM as final-state and DELSIM displaces them.
+# Herwig DECAYS these by default (unlike Sherpa) -> without this, DELSIM silently loses
+# every V0 displaced vertex. Synchronized is on by default for these, so the particle
+# setting carries to the antiparticle (verified via hepmc3_audit per-species).
+set /Herwig/Particles/K_S0:Stable Stable
+set /Herwig/Particles/Lambda0:Stable Stable
+set /Herwig/Particles/Sigma-:Stable Stable
+set /Herwig/Particles/Sigma+:Stable Stable
+set /Herwig/Particles/Xi-:Stable Stable
+set /Herwig/Particles/Xi0:Stable Stable
+
+# HepMC output: write all events to a file named "herwig_events"
+set /Herwig/Analysis/HepMC:PrintEvent 1000000
+set /Herwig/Analysis/HepMC:Filename herwig_events
+
+saverun LEP-DELPHI EventGenerator
