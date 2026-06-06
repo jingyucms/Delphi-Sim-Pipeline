@@ -8,7 +8,7 @@ echo ""
 
 NUM_BATCHES=25  
 
-for batch in {1..${NUM_BATCHES}}; do
+for batch in $(seq 1 "$NUM_BATCHES"); do   # NB: {1..$VAR} brace-expansion does NOT work with a variable
     echo "Batch $batch/${NUM_BATCHES}: Submitting ISR ON..."
     condor_submit condor_kk2f_zpole_ISR_on.sub
     sleep 2
