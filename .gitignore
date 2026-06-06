@@ -49,3 +49,14 @@ kk2f_build/delfor/
 events.hepmc3
 fort.26
 fort26_conv
+
+# Generator run artifacts (Sherpa/Herwig/Whizard scratch)
+**/sherpa_run/
+**/Process/
+**/Results.zip
+**/Results.zip~
+**/Settings_Report/
+References.tex
+sherpa_events
+*.hepmc3
+*.hepmc
