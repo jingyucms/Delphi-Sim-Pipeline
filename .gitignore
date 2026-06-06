@@ -54,6 +54,8 @@ fort26_conv
 **/sherpa_run/
 **/herwig_run/
 **/whizard_run/
+**/kkmc_run/
+kkmcee.hepmc
 **/Process/
 **/Results.zip
 **/Results.zip~
