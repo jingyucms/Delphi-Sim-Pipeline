@@ -23,7 +23,7 @@
 #include "HepMC3/GenEvent.h"
 #include "HepMC3/GenParticle.h"
 #include "HepMC3/GenVertex.h"
-#include "HepMC3/ReaderAscii.h"
+#include "HepMC3/ReaderFactory.h"   // deduce_reader: auto-detect Asciiv3 vs IO_GenEvent
 #include "HepMC3/Units.h"
 
 #include <fstream>
@@ -234,24 +234,27 @@ int main(int argc, char* argv[]) {
     const std::string infile = argv[1];
     const std::string outfile = (argc > 2) ? argv[2] : "fort.26";
 
-    ReaderAscii reader(infile);
-    if (reader.failed()) {
-        std::cerr << "Error: cannot open HepMC3 input " << infile << std::endl;
+    // deduce_reader auto-detects the HepMC3 ASCII variant so the converter stays
+    // generator-agnostic: Asciiv3 (Pythia8, Sherpa) and IO_GenEvent/HepMC2 (Herwig)
+    // are both handled without the caller knowing which generator produced the file.
+    auto reader = deduce_reader(infile);
+    if (!reader || reader->failed()) {
+        std::cerr << "Error: cannot open/parse HepMC3 input " << infile << std::endl;
         return 1;
     }
 
     FadgenWriter writer(outfile);
 
     int read = 0, accepted = 0;
-    while (!reader.failed()) {
+    while (!reader->failed()) {
         GenEvent evt(Units::GEV, Units::MM);
-        reader.read_event(evt);
-        if (reader.failed()) break;       // clean EOF or error after last event
+        reader->read_event(evt);
+        if (reader->failed()) break;      // clean EOF or error after last event
         evt.set_units(Units::GEV, Units::MM);
         ++read;
         if (writer.writeEvent(evt, read)) ++accepted;
     }
-    reader.close();
+    reader->close();
 
     std::cout << "\nSummary: read " << read << " events, accepted " << accepted
               << " (" << (read - accepted) << " rejected)" << std::endl;

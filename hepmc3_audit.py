@@ -26,7 +26,23 @@ def is_b(pdg):
 V0_NAMES = {310: 'K0S', 3122: 'Lambda', 3112: 'Sigma-', 3222: 'Sigma+', 3312: 'Xi-', 3322: 'Xi0'}
 
 
+def detect_format(path):
+    """Asciiv3 (Pythia8/Sherpa) vs IO_GenEvent/HepMC2 (Herwig) - P-line fields differ."""
+    with open(path) as fh:
+        for _ in range(3):
+            line = fh.readline()
+            if 'IO_GenEvent' in line:
+                return 'hepmc2'
+            if 'Asciiv3' in line:
+                return 'asciiv3'
+    return 'asciiv3'
+
+
 def audit(path):
+    fmt = detect_format(path)
+    # P-line: Asciiv3 = "P id vtx pdg px py pz e m status" (pdg=3, status=9);
+    #         IO_GenEvent = "P barcode pdg px py pz e m status ..." (pdg=2, status=8).
+    pdg_i, st_i = (2, 8) if fmt == 'hepmc2' else (3, 9)
     nev = 0
     st = collections.Counter()
     beams = final = v0_final = v0_decayed = b_total = 0
@@ -38,8 +54,8 @@ def audit(path):
                 nev += 1
             elif line.startswith('P '):
                 f = line.split()
-                pdg = int(f[3])
-                status = int(f[-1])
+                pdg = int(f[pdg_i])
+                status = int(f[st_i])
                 st[status] += 1
                 if status == 4:
                     beams += 1
@@ -62,7 +78,7 @@ def audit(path):
               else 'WARN: b-hadrons only final-state -> DELSIM cannot decay them' if b_status.get(1)
               else 'no b-hadrons in sample (b not produced/contained?)')
     print(f"== {path} ==")
-    print(f"  events: {nev}")
+    print(f"  format: {fmt}   events: {nev}")
     print(f"  status histogram: {dict(sorted(st.items()))}")
     print(f"  beams (status 4): {beams}  ({'OK' if beams else 'MISSING -> converter must hoist beams'})")
     print(f"  final-state (status 1): {final}  (~{final / nev:.1f}/evt)" if nev else "")
