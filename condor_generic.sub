@@ -1,0 +1,39 @@
+# condor_generic.sub - TEMPLATE: production for the key4hep generators via run_generic.sh.
+# Each job runs:  run_generic.sh <GEN> <NEV> <outdir>
+#   = generate (CVMFS/key4hep) -> hepmc2fadgen -> DELSIM (.sif) -> DST,
+# on a worker that has CVMFS (key4hep) + apptainer/singularity (for the .sif) + AFS (the .sif).
+#
+# IMPORTANT: this is VANILLA universe. The key4hep generators take their generator from CVMFS
+# and DELSIM from the .sif, so there is no baked image to pull - unlike the NATIVE pythia8/kk2f
+# subs (generators/pythia8/condor_delphi.sub, generators/kk2f/condor_kk2f_*.sub) which are
+# universe=docker with a self-contained registry image. (Do NOT bake key4hep into an image -
+# it is huge; CVMFS is the right source.)
+#
+# Don't edit this file per-run: generators/<gen>/submit.sh overrides GEN/NEV/queue via
+# `condor_submit -append`. Adjust OUTBASE / requirements / JobFlavour for your pool.
+# UNTESTED scaffold - validate one submission interactively before scaling.
+
+universe                = vanilla
+executable              = run_generic.sh
+
+GEN                     = pythia8_key4hep
+NEV                     = 1000
+OUTBASE                 = /eos/user/z/zhangj/delphi_prod
+arguments               = $(GEN) $(NEV) $(OUTBASE)/$(GEN)_$(ClusterId)_$(Process)
+
+getenv                  = True
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+
+# Workers must provide CVMFS + apptainer/singularity. Tune for your pool.
+requirements            = (HasSingularity =?= true)
+request_memory          = 4GB
+request_cpus            = 1
+request_disk            = 10GB
++JobFlavour             = "tomorrow"
+
+log                     = condor_logs/$(GEN)_$(ClusterId).log
+output                  = condor_logs/$(GEN)_$(ClusterId).$(Process).out
+error                   = condor_logs/$(GEN)_$(ClusterId).$(Process).err
+
+# queue count is appended by generators/<gen>/submit.sh (-append "queue N") - none here.
