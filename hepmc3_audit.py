@@ -23,11 +23,15 @@ def is_b(pdg):
     return (500 <= a < 600) or (5000 <= a < 6000)
 
 
+V0_NAMES = {310: 'K0S', 3122: 'Lambda', 3112: 'Sigma-', 3222: 'Sigma+', 3312: 'Xi-', 3322: 'Xi0'}
+
+
 def audit(path):
     nev = 0
     st = collections.Counter()
     beams = final = v0_final = v0_decayed = b_total = 0
     b_status = collections.Counter()
+    v0_species = collections.defaultdict(collections.Counter)  # pdg -> {status: n}
     with open(path) as fh:
         for line in fh:
             if line.startswith('E '):
@@ -42,6 +46,7 @@ def audit(path):
                 if status == 1:
                     final += 1
                 if pdg in V0:
+                    v0_species[pdg][status] += 1
                     if status == 1:
                         v0_final += 1
                     elif status == 2:
@@ -62,6 +67,12 @@ def audit(path):
     print(f"  beams (status 4): {beams}  ({'OK' if beams else 'MISSING -> converter must hoist beams'})")
     print(f"  final-state (status 1): {final}  (~{final / nev:.1f}/evt)" if nev else "")
     print(f"  V0 set: final={v0_final} decayed={v0_decayed}  ({v0_note})")
+    for pdg in sorted(V0_NAMES):
+        pos = dict(sorted(v0_species.get(pdg, {}).items()))
+        neg = dict(sorted(v0_species.get(-pdg, {}).items()))
+        if pos or neg:
+            flag = '' if not (pos.get(2) or neg.get(2)) else '  <-- DECAYED!'
+            print(f"      {V0_NAMES[pdg]:<7} ({pdg:>5}) status {pos or '-'}   anti({-pdg:>6}) {neg or '-'}{flag}")
     print(f"  b-hadrons: {b_total} by status {dict(sorted(b_status.items()))}  ({b_note})")
     print()
 

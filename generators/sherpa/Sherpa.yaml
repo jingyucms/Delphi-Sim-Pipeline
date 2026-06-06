@@ -18,3 +18,14 @@ PROCESSES:
 EVENTS: 20
 
 EVENT_OUTPUT: HepMC3_GenEvent[sherpa_events]
+
+# Keep the V0 set stable so they arrive at DELSIM as final-state and DELSIM displaces them.
+# (Sherpa appears to keep them stable by default, but make it explicit - do not rely on it.)
+# Sherpa 'Stable: 1' = both particle and antiparticle stable.
+PARTICLE_DATA:
+  310:  {Stable: 1}   # K0S
+  3122: {Stable: 1}   # Lambda (+ anti)
+  3112: {Stable: 1}   # Sigma-  (+ anti)
+  3222: {Stable: 1}   # Sigma+  (+ anti)
+  3312: {Stable: 1}   # Xi-     (+ anti)
+  3322: {Stable: 1}   # Xi0     (+ anti)
