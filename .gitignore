@@ -40,3 +40,11 @@ rescue/
 kk2f_build/KK-v4-14/
 kk2f_build/pythia6156/
 kk2f_build/delfor/
+
+# Compiled binaries (built from the tracked .cpp sources)
+/closure_gen
+/hepmc2fadgen
+/photon_diag
+events.hepmc3
+fort.26
+fort26_conv
