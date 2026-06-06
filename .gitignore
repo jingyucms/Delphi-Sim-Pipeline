@@ -45,6 +45,7 @@ kk2f_build/delfor/
 /closure_gen
 /hepmc2fadgen
 /photon_diag
+/pythia8_generate
 events.hepmc3
 fort.26
 fort26_conv
