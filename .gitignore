@@ -8,6 +8,7 @@ generators/kk2f/kk2f_build/*
 !generators/kk2f/kk2f_build/*.tit
 
 # Output directories
+output*/
 kk2f_isr_off_output/
 kk2f_isr_on_output/
 test_kk2f_output/
