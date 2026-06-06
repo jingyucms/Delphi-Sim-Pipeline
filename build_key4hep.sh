@@ -54,13 +54,14 @@ CXX="g++ -std=c++17 -O2"
 PYFLAGS="$(pythia8-config --cxxflags --libs)"
 HEPFLAGS="-I$HINC -L$HLIB -Wl,-rpath,$HLIB -lHepMC3"
 
-build() {           # build <src> <out> <flags...>
+build() {           # build <src> <out> <flags...>   (out may be a path; binary built next to source)
   local src="$1" out="$2"; shift 2
-  printf '%-18s ' "$out"
-  if $CXX "$src" -o "$out" "$@" 2>"/tmp/build_${out}.err"; then
+  local tag; tag="$(basename "$out")"
+  printf '%-18s ' "$tag"
+  if $CXX "$src" -o "$out" "$@" 2>"/tmp/build_${tag}.err"; then
     echo "OK ($(stat -c%s "$out") bytes)"
   else
-    echo "FAILED -> /tmp/build_${out}.err"; sed 's/^/    /' "/tmp/build_${out}.err" | head -20; return 1
+    echo "FAILED -> /tmp/build_${tag}.err"; sed 's/^/    /' "/tmp/build_${tag}.err" | head -20; return 1
   fi
 }
 
@@ -68,10 +69,12 @@ TARGETS=("$@"); [ ${#TARGETS[@]} -eq 0 ] && TARGETS=(hepmc2fadgen closure_gen py
 rc=0
 for t in "${TARGETS[@]}"; do
   case "$t" in
-    hepmc2fadgen)     build hepmc2fadgen.cpp     hepmc2fadgen     $HEPFLAGS || rc=1 ;;          # HepMC3-only (generator-agnostic)
-    closure_gen)      build closure_gen.cpp      closure_gen      $PYFLAGS $HEPFLAGS -lz || rc=1 ;;
-    pythia8_generate) build pythia8_generate.cpp pythia8_generate $PYFLAGS || rc=1 ;;           # production generator (EventWriter path)
-    photon_diag)      build photon_diag.cpp      photon_diag      $PYFLAGS || rc=1 ;;
+    # hepmc2fadgen is the shared converter -> stays at repo root. The generator sources moved
+    # into generators/<gen>/ during the reorg; each binary is built next to its source.
+    hepmc2fadgen)     build hepmc2fadgen.cpp hepmc2fadgen $HEPFLAGS || rc=1 ;;                   # HepMC3-only (generator-agnostic)
+    closure_gen)      build generators/pythia8_key4hep/closure_gen.cpp generators/pythia8_key4hep/closure_gen $PYFLAGS $HEPFLAGS -lz || rc=1 ;;
+    pythia8_generate) build generators/pythia8/pythia8_generate.cpp generators/pythia8/pythia8_generate $PYFLAGS || rc=1 ;;  # native EventWriter path
+    photon_diag)      build generators/pythia8/photon_diag.cpp generators/pythia8/photon_diag $PYFLAGS || rc=1 ;;
     *) echo "unknown target: $t"; rc=1 ;;
   esac
 done
