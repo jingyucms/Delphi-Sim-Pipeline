@@ -13,13 +13,20 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEY4HEP_SETUP="${KEY4HEP_SETUP:-/cvmfs/sw.hsf.org/key4hep/setup.sh}"
 OUTDIR="${1:-$PWD/whizard_run}"
+NEV="${2:-}"   # optional event count; overrides n_events in zhad.sin (so run_generic.sh's buffer applies)
 
 set +u; source "$KEY4HEP_SETUP" >/dev/null 2>&1; set -u
 command -v whizard >/dev/null || { echo "ERROR: whizard not on PATH (key4hep not sourced?)"; exit 1; }
 
 mkdir -p "$OUTDIR"; cd "$OUTDIR"
-echo "$(whizard --version 2>/dev/null | head -1)  outdir=$OUTDIR"
-whizard "$HERE/zhad.sin" > whizard.log 2>&1 || { echo "ERROR: whizard failed"; tail -20 whizard.log; exit 1; }
+# Honor a caller-supplied event count by overriding n_events in a local copy of the steering file.
+SIN="$HERE/zhad.sin"
+if [ -n "$NEV" ]; then
+  SIN="$OUTDIR/zhad.sin"
+  sed -E "s/^[[:space:]]*n_events[[:space:]]*=.*/n_events = $NEV/" "$HERE/zhad.sin" > "$SIN"
+fi
+echo "$(whizard --version 2>/dev/null | head -1)  outdir=$OUTDIR  n_events=${NEV:-<from zhad.sin>}"
+whizard "$SIN" > whizard.log 2>&1 || { echo "ERROR: whizard failed"; tail -20 whizard.log; exit 1; }
 if [ -s whizard_events.hepmc ]; then
   cp -f whizard_events.hepmc events.hepmc3
   echo "HepMC3 -> $OUTDIR/events.hepmc3 ($(stat -c%s events.hepmc3) bytes)"

@@ -1,15 +1,25 @@
 # Native pythia8 production - SINGULARITY model (vanilla universe).
-# universe=docker is DEPRECATED; the job now runs the .sif via run_in_singularity.sh, which
+# universe=docker is DEPRECATED; the job runs the .sif via run_in_singularity.sh, which
 # singularity-exec's the delphi-sim image and calls run_pipeline.sh inside it.
+#
+# VALIDATED on real condor (bigbird25, cluster 11053750, 2026-06-07): the worker needs the
+# forwarded Kerberos/AFS credential to READ the .sif from AFS (system:anyuser has only 'l')
+# and to WRITE the DST to EOS. CERN's pool is NOT shared-FS, so the wrapper is transferred and
+# the .sif/scripts/config are read from AFS at runtime; the DST is written straight to EOS.
 universe                = vanilla
 executable              = generators/pythia8/run_in_singularity.sh
 
-# args -> run_pipeline.sh:  <nev> <job_id> <output_dir> <config> <version> <ebeam>
+# args -> run_pipeline.sh:  <nev> <job_id> <output_dir(EOS)> <config> <version> <ebeam>
 # (config_z_*.txt moved into generators/pythia8/ in the reorg; read from AFS at runtime)
-arguments               = 3000 job_$(ClusterId)_$(Process) /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/output /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/generators/pythia8/config_z_ss.txt v94c 45.625
+arguments               = 3000 job_$(ClusterId)_$(Process) /eos/user/z/zhangj/delphi_prod/pythia8 /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/generators/pythia8/config_z_ss.txt v94c 45.625
 
-getenv                  = True
-should_transfer_files   = NO
+# Transfer the small wrapper (CERN pool is not shared-FS); the DST goes to EOS, not back via condor.
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+transfer_output_files   = ""
+# Forward the Kerberos/AFS credential: REQUIRED to read the AFS .sif and write EOS.
+MY.SendCredential       = true
+getenv                  = False
 requirements            = (HasSingularity =?= true)
 
 request_memory          = 4GB

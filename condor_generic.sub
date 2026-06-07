@@ -11,19 +11,31 @@
 #
 # Don't edit this file per-run: generators/<gen>/submit.sh overrides GEN/NEV/queue via
 # `condor_submit -append`. Adjust OUTBASE / requirements / JobFlavour for your pool.
-# UNTESTED scaffold - validate one submission interactively before scaling.
+#
+# Executable is the wrapper run_generic_condor.sh (transferred to the worker); it execs the
+# AFS-absolute run_generic.sh so REPO resolves to the AFS clone. Do NOT set executable to
+# run_generic.sh directly: it derives REPO from its own path, and once condor ships only the
+# executable to job scratch every $REPO/... reference (generators/, hepmc2fadgen, the .sif)
+# would be missing. Worker needs CVMFS (key4hep) + singularity (.sif) + the forwarded
+# Kerberos/AFS credential (AFS .sif read + EOS write). Validated model mirrors the native
+# pythia8 path (cluster 11053750, 2026-06-07).
 
 universe                = vanilla
-executable              = run_generic.sh
+executable              = run_generic_condor.sh
 
 GEN                     = pythia8_key4hep
 NEV                     = 1000
 OUTBASE                 = /eos/user/z/zhangj/delphi_prod
 arguments               = $(GEN) $(NEV) $(OUTBASE)/$(GEN)_$(ClusterId)_$(Process)
 
-getenv                  = True
+# Ship the small wrapper (CERN pool is not shared-FS); gen+DELSIM run in worker-local scratch
+# and the DST is copied to EOS by the wrapper, so nothing is transferred back via condor.
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT
+transfer_output_files   = ""
+# Forward the Kerberos/AFS credential: REQUIRED to read the AFS .sif/repo and write EOS.
+MY.SendCredential       = true
+getenv                  = False
 
 # Workers must provide CVMFS + apptainer/singularity. Tune for your pool.
 requirements            = (HasSingularity =?= true)
@@ -31,6 +43,10 @@ request_memory          = 4GB
 request_cpus            = 1
 request_disk            = 10GB
 +JobFlavour             = "tomorrow"
+
+# Backstop: remove any job running > 12h (a DELSIM EOF hang spins forever). The 10% over-generation
+# buffer in run_generic.sh is the real fix; tune this threshold to your per-job NEV if needed.
+periodic_remove         = (JobStatus == 2) && ((time() - JobCurrentStartDate) > 43200)
 
 log                     = condor_logs/$(GEN)_$(ClusterId).log
 output                  = condor_logs/$(GEN)_$(ClusterId).$(Process).out

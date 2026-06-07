@@ -10,6 +10,9 @@ set -e
 SIF=/afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/delphi-sim.sif
 SCRATCH="${_CONDOR_SCRATCH_DIR:-/tmp/$$}/work"
 mkdir -p "$SCRATCH"
+# Ensure the output dir (e.g. an EOS path) exists - run_pipeline.sh moves the DST there but
+# does not create it. Worker can mkdir EOS via the forwarded token (MY.SendCredential).
+[ -n "${3:-}" ] && mkdir -p "$3"
 
 # Stage /work from the image into the writable scratch.
 singularity exec --bind "$SCRATCH:/host_scratch" "$SIF" cp -a /work/. /host_scratch/

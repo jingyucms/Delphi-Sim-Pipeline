@@ -1,0 +1,31 @@
+# Sherpa 3.0.3 (key4hep) - e+e- -> jets (Z->hadrons) at 91.2 GeV, ISR OFF.
+# Same MEPS / CKKW-merged setup as Sherpa_isr_on.yaml (manual example 8.2.2.1), with ISR DISABLED
+# via PDF_LIBRARY: None -> the incoming lepton energy is fixed at 45.6 GeV/beam (the "unphysical"
+# fixed-energy case the manual mentions). No mass/photon cut.
+#
+# Select at run time:  SHERPA_YAML=Sherpa_isr_off.yaml ./generate.sh <nev> <outdir>
+
+BEAMS: [11, -11]
+BEAM_ENERGIES: 45.6               # per beam -> ECMS = 91.2 GeV
+
+PDF_LIBRARY: None                 # <-- disable the electron structure function = ISR OFF
+
+ALPHAS(MZ): 0.1188
+ORDER_ALPHAS: 1
+
+PROCESSES:
+- 11 -11 -> 93 93 93{3}:          # 93 = jet container; CKKW-merged up to 3 extra jets
+    CKKW: pow(10,-2.25/2.00)*E_CMS
+    Order: {QCD: 0, EW: 2}
+
+EVENTS: 20
+EVENT_OUTPUT: HepMC3_GenEvent[sherpa_events]
+
+# Keep the V0 set stable so they reach DELSIM as final-state. Stable: 1 = particle + antiparticle.
+PARTICLE_DATA:
+  310:  {Stable: 1}   # K0S
+  3122: {Stable: 1}   # Lambda (+ anti)
+  3112: {Stable: 1}   # Sigma-  (+ anti)
+  3222: {Stable: 1}   # Sigma+  (+ anti)
+  3312: {Stable: 1}   # Xi-     (+ anti)
+  3322: {Stable: 1}   # Xi0     (+ anti)
