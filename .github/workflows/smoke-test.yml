@@ -74,8 +74,11 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             CHANGED=$(git diff --name-only \
               origin/${{ github.base_ref }}...HEAD \
-              -- Dockerfile pythia8_generate.cpp Makefile \
-                 run_pipeline.sh kk2f_fadgen_fixer.cpp *.txt \
+              -- generators/pythia8/Dockerfile generators/kk2f/Dockerfile.kk2f \
+                 generators/pythia8/pythia8_generate.cpp generators/pythia8/Makefile \
+                 generators/pythia8/run_pipeline.sh generators/kk2f/run_kk2f_pipeline.sh \
+                 generators/kk2f/kk2f_fadgen_fixer.cpp 'generators/pythia8/*.txt' \
+                 hepmc2fadgen.cpp run_delsim_only.sh \
               2>/dev/null || true)
             if [ -n "$CHANGED" ]; then
               echo "rebuild=true" >> "$GITHUB_OUTPUT"
@@ -85,7 +88,7 @@ jobs:
               # Files unchanged: only skip the build if a published image
               # actually exists on GHCR.  On a cold start (no image pushed
               # yet) the manifest probe fails and we fall back to building.
-              GHCR_IMAGE="ghcr.io/dickychant/delphi-pythia8-pipeline:latest"
+              GHCR_IMAGE="ghcr.io/${{ github.repository_owner }}/delphi-sim-pipeline:latest"
               if docker manifest inspect "$GHCR_IMAGE" > /dev/null 2>&1; then
                 echo "rebuild=false" >> "$GITHUB_OUTPUT"
                 echo "No image-affecting files changed and GHCR image exists – will pull."
@@ -111,7 +114,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
+          file: generators/pythia8/Dockerfile
           # Keep the image locally; no push during smoke tests.
           push: false
           load: true
@@ -127,8 +130,8 @@ jobs:
       - name: Pull pre-built image from GHCR
         if: steps.changes.outputs.rebuild == 'false'
         run: |
-          docker pull ghcr.io/dickychant/delphi-pythia8-pipeline:latest
-          docker tag  ghcr.io/dickychant/delphi-pythia8-pipeline:latest delphi-pipeline:ci
+          docker pull ghcr.io/${{ github.repository_owner }}/delphi-sim-pipeline:latest
+          docker tag  ghcr.io/${{ github.repository_owner }}/delphi-sim-pipeline:latest delphi-pipeline:ci
 
       # ---------------------------------------------------------------- #
       # 5. Pythia8 generation smoke test                                  #
