@@ -68,7 +68,7 @@ current need.
 
 | aspect | `run_pipeline.sh` (lxplus) | `container/run_singularity.sh` (local) |
 |---|---|---|
-| base image | `docker.io/jingyucms/delphi-pythia8:v2.6` | `docker.io/cmssw/el9:x86_64` |
+| base image | `docker.io/jingyucms/delphi-sim:v2.6` | `docker.io/cmssw/el9:x86_64` |
 | runtime | Docker universe in HTCondor | singularity/apptainer |
 | DELPHI release | baked into image | CVMFS at runtime |
 | Pythia 8 | baked into image (≤ 8.306ish) | LCG_109 → 8.317 |

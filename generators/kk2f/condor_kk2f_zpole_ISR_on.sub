@@ -1,0 +1,21 @@
+universe                = docker
+docker_image            = registry.cern.ch/docker.io/jingyucms/delphi-kk2f:v2.16
+
+# ISR ON at Z pole - job name includes "ISRon"
+arguments               = 3000 job_ISRon_$(ClusterId)_$(Process) /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/output on 91.187
+
+getenv                  = True
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+
+request_memory          = 4GB
+request_cpus            = 1
+request_disk            = 10GB
+
++JobFlavour             = "tomorrow"
+
+log                     = condor_logs/zpole_ISRon_$(ClusterId)_$(Process).log
+output                  = condor_logs/zpole_ISRon_$(ClusterId)_$(Process).out
+error                   = condor_logs/zpole_ISRon_$(ClusterId)_$(Process).err
+
+queue 20

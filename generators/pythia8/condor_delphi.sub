@@ -1,0 +1,25 @@
+# Native pythia8 production - SINGULARITY model (vanilla universe).
+# universe=docker is DEPRECATED; the job now runs the .sif via run_in_singularity.sh, which
+# singularity-exec's the delphi-sim image and calls run_pipeline.sh inside it.
+universe                = vanilla
+executable              = generators/pythia8/run_in_singularity.sh
+
+# args -> run_pipeline.sh:  <nev> <job_id> <output_dir> <config> <version> <ebeam>
+# (config_z_*.txt moved into generators/pythia8/ in the reorg; read from AFS at runtime)
+arguments               = 3000 job_$(ClusterId)_$(Process) /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/output /afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/generators/pythia8/config_z_ss.txt v94c 45.625
+
+getenv                  = True
+should_transfer_files   = NO
+requirements            = (HasSingularity =?= true)
+
+request_memory          = 4GB
+request_cpus            = 1
+request_disk            = 10GB
+
++JobFlavour             = "tomorrow"
+
+log                     = condor_logs/job_$(ClusterId)_$(Process).log
+output                  = condor_logs/job_$(ClusterId)_$(Process).out
+error                   = condor_logs/job_$(ClusterId)_$(Process).err
+
+queue 10

@@ -1,0 +1,31 @@
+# M3 / Sherpa 3.0.3 (key4hep) — e+e- -> Z/gamma* -> hadrons at the Z pole.
+# First-draft, MINIMAL: prove Sherpa runs in key4hep and emits readable HepMC3 that
+# hepmc2fadgen can ingest. V0-stability and guaranteed b-inclusion are layered in AFTER
+# the plumbing is proven (the hepmc3_audit step will tell us what's missing).
+#
+# Run (no container needed):
+#   source /cvmfs/sw.hsf.org/key4hep/setup.sh
+#   Sherpa -f <this file>          # integration phase first, then EVENTS events
+# Output: sherpa_events.hepmc3 (ASCII) in CWD.
+
+BEAMS: [11, -11]
+BEAM_ENERGIES: 45.5935            # per beam -> ECMS = 91.187 GeV
+
+PROCESSES:
+- 11 -11 -> 93 93:                # 93 = jet container (light quarks + g); EW production of q qbar
+    Order: {QCD: 0, EW: 2}
+
+EVENTS: 20
+
+EVENT_OUTPUT: HepMC3_GenEvent[sherpa_events]
+
+# Keep the V0 set stable so they arrive at DELSIM as final-state and DELSIM displaces them.
+# (Sherpa appears to keep them stable by default, but make it explicit - do not rely on it.)
+# Sherpa 'Stable: 1' = both particle and antiparticle stable.
+PARTICLE_DATA:
+  310:  {Stable: 1}   # K0S
+  3122: {Stable: 1}   # Lambda (+ anti)
+  3112: {Stable: 1}   # Sigma-  (+ anti)
+  3222: {Stable: 1}   # Sigma+  (+ anti)
+  3312: {Stable: 1}   # Xi-     (+ anti)
+  3322: {Stable: 1}   # Xi0     (+ anti)

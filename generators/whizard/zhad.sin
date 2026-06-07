@@ -1,0 +1,42 @@
+# M3 / Whizard 3.1.5 (key4hep) - e+e- -> Z/gamma* -> hadrons at the Z pole.
+# Based on Whizard's shipped EE examples. Proves Whizard runs in key4hep, hadronizes
+# (via PYTHIA6) and writes HepMC that hepmc2fadgen ingests. V0-stability layered in after
+# the audit (same approach as Sherpa/Herwig).
+#
+# Run (no container):
+#   source /cvmfs/sw.hsf.org/key4hep/setup.sh
+#   whizard generators/whizard/zhad.sin     # -> whizard_events.hepmc* in CWD
+
+model = SM
+
+# e+e- -> q qbar, ONE process per flavour. WHIZARD forbids a flavour-summed process whose
+# members have different masses (u,d,s massless but c,b massive), so we list them separately
+# and let integrate()/simulate() combine the 5, sampled by cross-section. Real masses kept.
+process ee_dd = e1, E1 => d, D
+process ee_uu = e1, E1 => u, U
+process ee_ss = e1, E1 => s, S
+process ee_cc = e1, E1 => c, C
+process ee_bb = e1, E1 => b, B
+
+sqrts = 91.187 GeV
+beams = e1, E1
+
+# parton shower + hadronization via PYTHIA6 (Whizard's built-in interface)
+?ps_fsr_active = true
+?hadronization_active = true
+$shower_method = "PYTHIA6"
+ps_max_n_flavors = 5
+ps_mass_cutoff = 1
+
+# Keep the V0 set stable so they reach DELSIM as final-state (PYTHIA6 decays them by
+# default). Pass MDCY(C<KF>,1)=0 to PYTHIA6 via PYGIVE; C<KF> = compressed code of KF.
+$ps_PYTHIA_PYGIVE = "MDCY(C310,1)=0; MDCY(C3122,1)=0; MDCY(C3112,1)=0; MDCY(C3222,1)=0; MDCY(C3312,1)=0; MDCY(C3322,1)=0"
+
+seed = 12345
+integrate (ee_dd, ee_uu, ee_ss, ee_cc, ee_bb) { iterations = 3:5000 }
+
+n_events = 20
+?rebuild_events = true
+$sample = "whizard_events"
+sample_format = hepmc
+simulate (ee_dd, ee_uu, ee_ss, ee_cc, ee_bb)
