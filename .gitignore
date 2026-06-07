@@ -21,6 +21,7 @@ test_kk2f_output/
 # Container images (multi-GB, never tracked)
 *.sif
 *.sif.old-*
+*.sif.bak
 
 # Logs and scratch
 *.log
@@ -28,6 +29,7 @@ docker_stderror
 
 # Local test / run artifacts
 test_fort.*
+_validate_*
 test_v2.16/
 dag/
 rescue/
