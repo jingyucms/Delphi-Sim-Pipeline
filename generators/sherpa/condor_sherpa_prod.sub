@@ -22,6 +22,11 @@ request_cpus            = 1
 request_disk            = 10GB
 +JobFlavour             = "workday"
 
+# Safety watchdog: a normal job finishes in <2.1h; >3h means a DELSIM hang. The 10% over-generation
+# buffer in run_generic.sh should prevent it, but remove any job that exceeds 3h so a hang can never
+# burn a slot for days (then top up the shortfall by resubmitting).
+periodic_remove         = (JobStatus == 2) && ((time() - JobCurrentStartDate) > 10800)
+
 log                     = condor_logs/sherpa_$(VARIANT)_$(ClusterId).log
 output                  = condor_logs/sherpa_$(VARIANT)_$(ClusterId).$(Process).out
 error                   = condor_logs/sherpa_$(VARIANT)_$(ClusterId).$(Process).err

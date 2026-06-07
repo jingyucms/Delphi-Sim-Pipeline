@@ -44,6 +44,10 @@ request_cpus            = 1
 request_disk            = 10GB
 +JobFlavour             = "tomorrow"
 
+# Backstop: remove any job running > 12h (a DELSIM EOF hang spins forever). The 10% over-generation
+# buffer in run_generic.sh is the real fix; tune this threshold to your per-job NEV if needed.
+periodic_remove         = (JobStatus == 2) && ((time() - JobCurrentStartDate) > 43200)
+
 log                     = condor_logs/$(GEN)_$(ClusterId).log
 output                  = condor_logs/$(GEN)_$(ClusterId).$(Process).out
 error                   = condor_logs/$(GEN)_$(ClusterId).$(Process).err
