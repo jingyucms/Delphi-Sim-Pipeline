@@ -1,0 +1,33 @@
+# Sherpa 3.0.3 (key4hep) - e+e- -> Z/gamma* -> hadrons at the Z pole, ISR OFF.
+# Monochromatic beams, no initial-state QED radiation (PDF_LIBRARY: None), as in the official
+# Sherpa Examples/RemnantTests/SimpleLEP/Sherpa.yaml. Every event collides at exactly 91.2 GeV
+# (Born line shape). Identical to Sherpa_isr_on.yaml except: no PDFESherpa, no Mass selector.
+#
+# Select at run time:  SHERPA_YAML=Sherpa_isr_off.yaml ./generate.sh <nev> <outdir>
+
+BEAMS: [11, -11]
+BEAM_ENERGIES: 45.6               # per beam -> ECMS = 91.2 GeV
+
+PDF_LIBRARY: None                 # monochromatic beams = no ISR
+ME_GENERATORS: Comix
+
+ALPHAS(MZ): 0.1188
+ORDER_ALPHAS: 2
+SHOWER:
+  FS_PT2MIN: 1.00
+
+PROCESSES:
+- 11 -11 -> 93 93:                # 93 = jet container (light quarks + g); EW production of q qbar
+    Order: {QCD: 0, EW: 2}
+
+EVENTS: 20
+EVENT_OUTPUT: HepMC3_GenEvent[sherpa_events]
+
+# V0 set kept stable for the DELSIM displaced-vertex handling. Stable: 1 = particle + antiparticle.
+PARTICLE_DATA:
+  310:  {Stable: 1}   # K0S
+  3122: {Stable: 1}   # Lambda (+ anti)
+  3112: {Stable: 1}   # Sigma-  (+ anti)
+  3222: {Stable: 1}   # Sigma+  (+ anti)
+  3312: {Stable: 1}   # Xi-     (+ anti)
+  3322: {Stable: 1}   # Xi0     (+ anti)

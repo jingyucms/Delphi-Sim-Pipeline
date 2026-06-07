@@ -1,0 +1,44 @@
+# Sherpa 3.0.3 (key4hep) - e+e- -> Z/gamma* -> hadrons at the Z pole, ISR ON.
+# Initial-state radiation via the ELECTRON STRUCTURE FUNCTION (PDF_LIBRARY: PDFESherpa), exactly as
+# in the official Sherpa Examples/RemnantTests/SimpleLEP/Sherpa.ISR.yaml. This convolves the cross
+# section with the e structure function -> the Z line-shape suppression + radiative-return kinematics
+# (the physical LEP ISR). Identical to Sherpa_isr_off.yaml except for the ISR (PDF_LIBRARY) + the
+# regulating Mass selector.
+#
+# NB: YFS {MODE: ISR} was tried first and only soft-dresses the event (no line-shape suppression,
+#     and it triggered Remnant_Handler::MakeBeamBlobs failures) - PDFESherpa is the right approach.
+#
+# Select at run time:  SHERPA_YAML=Sherpa_isr_on.yaml ./generate.sh <nev> <outdir>
+
+BEAMS: [11, -11]
+BEAM_ENERGIES: 45.6               # per beam -> ECMS = 91.2 GeV
+
+PDF_LIBRARY: PDFESherpa           # electron structure function = ISR
+ME_GENERATORS: Comix
+
+ALPHAS(MZ): 0.1188
+ORDER_ALPHAS: 2
+SHOWER:
+  FS_PT2MIN: 1.00
+
+PROCESSES:
+- 11 -11 -> 93 93:                # 93 = jet container (light quarks + g); EW production of q qbar
+    Order: {QCD: 0, EW: 2}
+
+# Regulate the ISR convolution: keep the q-qbar invariant mass above 40 GeV (excludes the hard
+# radiative-return tail far below the Z). REQUIRED for a finite cross section with PDFESherpa.
+# This 40 GeV value defines the sample - revisit if a different lower bound is wanted.
+SELECTORS:
+- [Mass, 93, 93, 40.0, E_CMS]
+
+EVENTS: 20
+EVENT_OUTPUT: HepMC3_GenEvent[sherpa_events]
+
+# V0 set kept stable for the DELSIM displaced-vertex handling. Stable: 1 = particle + antiparticle.
+PARTICLE_DATA:
+  310:  {Stable: 1}   # K0S
+  3122: {Stable: 1}   # Lambda (+ anti)
+  3112: {Stable: 1}   # Sigma-  (+ anti)
+  3222: {Stable: 1}   # Sigma+  (+ anti)
+  3312: {Stable: 1}   # Xi-     (+ anti)
+  3322: {Stable: 1}   # Xi0     (+ anti)

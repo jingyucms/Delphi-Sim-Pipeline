@@ -19,13 +19,15 @@ NEVMAX="${2:-20}"
 EBEAM="${3:-45.5935}"          # eCM 91.187 / 2
 VERSION="${4:-v94c}"
 OUT_SDST="${5:-${FADGEN}.sdst}"   # NB: append, don't strip — AFS paths contain dots (cern.ch)
+NRUN="${DELSIM_NRUN:-100001}"     # DELSIM run number = its RNG seed; vary per job in production
+                                  # (export DELSIM_NRUN) so detector-sim fluctuations decorrelate.
 
 [ -s "$FADGEN" ] || { echo "ERROR: fadgen file not found/empty: $FADGEN"; exit 1; }
 [ -s "$SIF" ]    || { echo "ERROR: .sif not found: $SIF"; exit 1; }
 command -v singularity >/dev/null || { echo "ERROR: singularity not on this host (run on lxplus)"; exit 1; }
 
 aklog 2>/dev/null || true
-echo "HOST=$(hostname)  fadgen=$FADGEN  nev=$NEVMAX ebeam=$EBEAM ver=$VERSION"
+echo "HOST=$(hostname)  fadgen=$FADGEN  nev=$NEVMAX ebeam=$EBEAM ver=$VERSION nrun=$NRUN"
 echo "host LD_LIBRARY_PATH (must be clean, no key4hep): '${LD_LIBRARY_PATH:-<empty>}'"
 
 SCRATCH_ROOT="$(mktemp -d /tmp/m2_delsim.XXXXXX)"
@@ -40,7 +42,7 @@ cp "$REPO/run_delsim_only.sh" "$SCRATCH/run_delsim_only.sh"; chmod +x "$SCRATCH/
 
 echo "=== DELSIM inside .sif ==="
 singularity exec --bind /afs:/afs --bind /eos:/eos --bind "$SCRATCH:/work" "$SIF" \
-    bash -lc "cd /work && ./run_delsim_only.sh $NEVMAX 100001 $EBEAM $VERSION"
+    bash -lc "cd /work && ./run_delsim_only.sh $NEVMAX $NRUN $EBEAM $VERSION"
 RC=$?
 
 echo "=== outputs ==="

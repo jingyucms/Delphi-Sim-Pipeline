@@ -17,12 +17,23 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GEN="${1:?usage: run_generic.sh <pythia8_key4hep|sherpa|herwig|whizard|kkmc> [nevents] [outdir]}"
 NEV="${2:-20}"
 OUTDIR="${3:-$PWD/${GEN}_prod}"
+SEED="${4:-${RUN_SEED:-}}"   # per-job seed: drives the generator RNG AND the DELSIM NRUN. Unset -> defaults.
 GENDIR="$REPO/generators/$GEN"
 
 [ -x "$GENDIR/generate.sh" ] || { echo "ERROR: no generate.sh for '$GEN' ($GENDIR)"; exit 1; }
 [ -x "$REPO/hepmc2fadgen" ] || { echo "ERROR: hepmc2fadgen not built (./build_key4hep.sh hepmc2fadgen)"; exit 1; }
 mkdir -p "$OUTDIR"
-echo "=== [$GEN] production: nev=$NEV outdir=$OUTDIR ==="
+echo "=== [$GEN] production: nev=$NEV outdir=$OUTDIR seed=${SEED:-<default>} ==="
+
+# Per-job seeding (production): one seed drives the generator RNG and the DELSIM NRUN so parallel
+# condor jobs do not duplicate events / detector fluctuations. The (deferred) condor layer should
+# pass a unique seed per job, e.g. ClusterId*N+Process. NB: SHERPA_SEED is consumed by the sherpa
+# generate.sh; the other key4hep generators still need their own seed wiring (TODO).
+if [ -n "$SEED" ]; then
+  export SHERPA_SEED="$SEED"
+  export DELSIM_NRUN="$(( 3000 + SEED % 88000 ))"   # DELSIM RNG range proven by the native pipeline
+  echo "    seed=$SEED -> SHERPA_SEED=$SHERPA_SEED  DELSIM_NRUN=$DELSIM_NRUN"
+fi
 
 # 1) generate -> events.hepmc3  (each generate.sh sources key4hep in its own process)
 echo "--- generate ---"
