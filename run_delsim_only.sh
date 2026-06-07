@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run ONLY the DELSIM step on a pre-made FADGEN file (my_events.fadgen in CWD).
 # Used to validate end-to-end that hepmc2fadgen's fort.26 is ingested by DELSIM.
-# Must run INSIDE the delphi-pythia8 .sif with a writable /work. Env block is
+# Must run INSIDE the delphi-sim .sif with a writable /work. Env block is
 # copied verbatim from run_pipeline.sh.
 # Usage: run_delsim_only.sh <nevmax> [nrun] [ebeam] [version]
 set -e

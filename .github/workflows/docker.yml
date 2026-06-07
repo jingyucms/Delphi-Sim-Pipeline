@@ -42,7 +42,7 @@ jobs:
   #  Pythia8 pipeline image  (generators/pythia8/Dockerfile)            #
   # ------------------------------------------------------------------ #
   build-pythia8:
-    name: Build delphi-pythia8-pipeline image
+    name: Build delphi-sim-pipeline image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,7 +67,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        # Only on manual dispatch; requires DOCKERHUB_USERNAME and
+        # On main pushes + manual dispatch; requires DOCKERHUB_USERNAME and
         # DOCKERHUB_TOKEN to be set as repository secrets.
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -79,7 +79,7 @@ jobs:
         id: meta-ghcr
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/delphi-pythia8-pipeline
+          images: ghcr.io/${{ github.repository_owner }}/delphi-sim-pipeline
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -104,7 +104,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/metadata-action@v5
         with:
-          images: jingyucms/delphi-pythia8
+          images: jingyucms/delphi-sim
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}

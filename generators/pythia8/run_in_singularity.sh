@@ -1,13 +1,13 @@
 #!/bin/bash
 # Condor wrapper that runs the native pythia8 DELPHI pipeline inside the pinned singularity
-# image (the delphi-pythia8 .sif = the jingyucms image). This is the singularity submission
+# image (the delphi-sim .sif = the jingyucms image). This is the singularity submission
 # model (vanilla universe), replacing the deprecated universe=docker path.
 #
 # The image's /work is read-only but DELSIM needs GBs of scratch, so we stage /work into the
 # condor worker scratch dir and bind it back as /work for the real run.
 # Args are passed straight to run_pipeline.sh: <nev> <job_id> <output_dir> <config> <version> <ebeam>
 set -e
-SIF=/afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/delphi-pythia8.sif
+SIF=/afs/cern.ch/work/z/zhangj/delphi-pythia8-pipeline/delphi-sim.sif
 SCRATCH="${_CONDOR_SCRATCH_DIR:-/tmp/$$}/work"
 mkdir -p "$SCRATCH"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # m2_delsim_lxplus.sh — run the DELSIM step (subshell B) on a FADGEN/fort.26 file, inside the
-# delphi-pythia8 .sif, on lxplus. Deliberately sources NO key4hep: env isolation by
+# delphi-sim .sif, on lxplus. Deliberately sources NO key4hep: env isolation by
 # construction — the fort.26 is the ONLY thing that crosses into the container, so there is no
 # need to bind-mount /cvmfs/sw.hsf.org or otherwise expose the generator stack to DELSIM.
 #
@@ -12,7 +12,7 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SIF="$REPO/delphi-pythia8.sif"
+SIF="$REPO/delphi-sim.sif"
 
 FADGEN="${1:?usage: m2_delsim_lxplus.sh <fadgen_file> [nevmax] [ebeam] [version] [out_sdst]}"
 NEVMAX="${2:-20}"

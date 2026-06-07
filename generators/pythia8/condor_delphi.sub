@@ -1,6 +1,6 @@
 # Native pythia8 production - SINGULARITY model (vanilla universe).
 # universe=docker is DEPRECATED; the job now runs the .sif via run_in_singularity.sh, which
-# singularity-exec's the delphi-pythia8 image and calls run_pipeline.sh inside it.
+# singularity-exec's the delphi-sim image and calls run_pipeline.sh inside it.
 universe                = vanilla
 executable              = generators/pythia8/run_in_singularity.sh
 
