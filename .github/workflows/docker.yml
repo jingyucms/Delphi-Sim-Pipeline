@@ -69,7 +69,7 @@ jobs:
       - name: Log in to Docker Hub
         # Only on manual dispatch; requires DOCKERHUB_USERNAME and
         # DOCKERHUB_TOKEN to be set as repository secrets.
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -101,7 +101,7 @@ jobs:
 
       - name: Extract Docker metadata (Docker Hub)
         id: meta-dockerhub
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         uses: docker/metadata-action@v5
         with:
           images: jingyucms/delphi-pythia8
@@ -109,8 +109,8 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Push to Docker Hub (manual only)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Push to Docker Hub (on main + manual)
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -147,7 +147,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -175,7 +175,7 @@ jobs:
 
       - name: Extract Docker metadata (Docker Hub)
         id: meta-dockerhub
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         uses: docker/metadata-action@v5
         with:
           images: jingyucms/delphi-kk2f-pipeline
@@ -183,8 +183,8 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Push to Docker Hub (manual only)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Push to Docker Hub (on main + manual)
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
         with:
           context: .
