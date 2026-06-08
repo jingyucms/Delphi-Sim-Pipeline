@@ -7,8 +7,48 @@
 #include <ctime>
 #include <unistd.h>
 #include <unordered_map>
+#include <set>
+#include <sstream>
+#include <string>
+#include <algorithm>
+#include <cctype>
+#include <memory>
 
 using namespace Pythia8;
+
+// Opt-in veto of events containing specific |PDG| (e.g. unwanted B-hadrons).
+// Uses the Pythia 8.31x UserHooks API (canVetoAfterHadronization /
+// doVetoAfterHadronization, const Event&) — key4hep's Pythia 8.315 does NOT
+// expose the older canVetoEvent/doVetoEvent. Fires after hadronization, where
+// the hadrons exist in the record. EMPTY set = no veto (hook not registered).
+class VetoUnwantedBHadrons : public UserHooks {
+public:
+    explicit VetoUnwantedBHadrons(std::set<int> vetoAbsPdgs)
+        : vetoAbsPdgs_(std::move(vetoAbsPdgs)) {}
+    bool canVetoAfterHadronization() override { return !vetoAbsPdgs_.empty(); }
+    bool doVetoAfterHadronization(const Event &event) override {
+        for (int i = 1; i < event.size(); ++i)
+            if (vetoAbsPdgs_.count(std::abs(event[i].id())) > 0) return true;
+        return false;
+    }
+private:
+    std::set<int> vetoAbsPdgs_;
+};
+
+// Parse a comma-separated |PDG| list into `out`. CLEARS `out` first (so a
+// caller default is never silently unioned in), and an empty/blank string
+// leaves it empty = veto disabled.
+static void parseCsvPdgs(const std::string &text, std::set<int> &out) {
+    out.clear();
+    std::stringstream ss(text);
+    std::string tok;
+    while (std::getline(ss, tok, ',')) {
+        tok.erase(std::remove_if(tok.begin(), tok.end(), ::isspace), tok.end());
+        if (tok.empty()) continue;
+        const int pdg = std::atoi(tok.c_str());
+        if (pdg != 0) out.insert(std::abs(pdg));
+    }
+}
 
 class EventWriter {
 private:
@@ -315,14 +355,20 @@ int main(int argc, char* argv[]) {
         target_events = std::atoi(argv[1]);
         if (target_events <= 0) {
             std::cerr << "Error: Number of events must be positive" << std::endl;
-            std::cerr << "Usage: " << argv[0] << " [number_of_events] [config_file]" << std::endl;
+            std::cerr << "Usage: " << argv[0] << " [number_of_events] [config_file] [veto_pdg_csv]" << std::endl;
             return 1;
         }
     }
-    
+
     if (argc > 2) {
         config_file = argv[2];
     }
+
+    // [veto_pdg_csv] is OPT-IN: empty/absent = NO veto. Pass e.g. "541" to veto
+    // events that contain a Bc. Cleared-then-parsed (no silent default), and an
+    // empty string disables it. The hook is only registered below if non-empty.
+    std::set<int> vetoAbsPdgs;
+    if (argc > 3) parseCsvPdgs(argv[3], vetoAbsPdgs);
     
     // Generate unique random seed for each run (constrained to Pythia8 limits)
     unsigned long raw_seed = static_cast<unsigned long>(std::time(nullptr)) + static_cast<unsigned long>(getpid());
@@ -438,11 +484,23 @@ int main(int argc, char* argv[]) {
     pythia.readString("-3312:mayDecay = false");
     std::cout << "  Xi- (3312 / -3312) decay disabled" << std::endl;
 
+    // Register the B-hadron veto ONLY when an explicit non-empty PDG set was
+    // given (opt-in). With no veto_pdg_csv the hook is never attached, so the
+    // default run is unbiased.
+    std::shared_ptr<VetoUnwantedBHadrons> vetoHook;
+    if (!vetoAbsPdgs.empty()) {
+        vetoHook = std::make_shared<VetoUnwantedBHadrons>(vetoAbsPdgs);
+        pythia.setUserHooksPtr(vetoHook);
+        std::cout << "B-hadron veto ON — rejecting events with |PDG| in:";
+        for (int p : vetoAbsPdgs) std::cout << " " << p;
+        std::cout << std::endl;
+    }
+
     if (!pythia.init()) {
         std::cerr << "PYTHIA initialization failed!" << std::endl;
         return -1;
     }
-    
+
     EventWriter writer("fort.26");
     
     int events_generated = 0;  // Count how many PYTHIA generated
