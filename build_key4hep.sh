@@ -54,6 +54,16 @@ CXX="g++ -std=c++17 -O2"
 PYFLAGS="$(pythia8-config --cxxflags --libs)"
 HEPFLAGS="-I$HINC -L$HLIB -Wl,-rpath,$HLIB -lHepMC3"
 
+# Optional EvtGen for closure_gen — enable with USE_EVTGEN=1. Links the key4hep
+# view's own EvtGen 02.02.03 (no Pythia version bump, no .sif rebuild). $EVTGEN
+# points at .../share, so headers/libs live in its package root (parent dir).
+EVTGENFLAGS=""
+if [ "${USE_EVTGEN:-0}" = "1" ]; then
+  EVTROOT="$(dirname "${EVTGEN:?USE_EVTGEN=1 but \$EVTGEN unset — source key4hep first}")"
+  EVTGENFLAGS="-DUSE_EVTGEN -I$EVTROOT/include -L$EVTROOT/lib64 -Wl,-rpath,$EVTROOT/lib64 -lEvtGen -lEvtGenExternal"
+  echo "EvtGen:  ON ($EVTROOT)"
+fi
+
 build() {           # build <src> <out> <flags...>   (out may be a path; binary built next to source)
   local src="$1" out="$2"; shift 2
   local tag; tag="$(basename "$out")"
@@ -72,7 +82,7 @@ for t in "${TARGETS[@]}"; do
     # hepmc2fadgen is the shared converter -> stays at repo root. The generator sources moved
     # into generators/<gen>/ during the reorg; each binary is built next to its source.
     hepmc2fadgen)     build hepmc2fadgen.cpp hepmc2fadgen $HEPFLAGS || rc=1 ;;                   # HepMC3-only (generator-agnostic)
-    closure_gen)      build generators/pythia8_key4hep/closure_gen.cpp generators/pythia8_key4hep/closure_gen $PYFLAGS $HEPFLAGS -lz || rc=1 ;;
+    closure_gen)      build generators/pythia8_key4hep/closure_gen.cpp generators/pythia8_key4hep/closure_gen $PYFLAGS $HEPFLAGS -lz $EVTGENFLAGS || rc=1 ;;
     pythia8_generate) build generators/pythia8/pythia8_generate.cpp generators/pythia8/pythia8_generate $PYFLAGS || rc=1 ;;  # native EventWriter path
     photon_diag)      build generators/pythia8/photon_diag.cpp generators/pythia8/photon_diag $PYFLAGS || rc=1 ;;
     *) echo "unknown target: $t"; rc=1 ;;

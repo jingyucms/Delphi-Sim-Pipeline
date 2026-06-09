@@ -165,16 +165,21 @@ echo "File permissions:"
 ls -la pythia8_generate
 echo "=== Starting Pythia ==="
 
+# Optional B-hadron veto, OFF by default (opt-in). Set VETO_PDG_CSV=541 (etc.)
+# to reject events containing those |PDG|; empty = no veto.
+VETO_PDG_CSV="${VETO_PDG_CSV:-}"
+
 # Step 2: Generate events with optional config file
 echo "Step 2: Generating $PYTHIA_EVENTS events (DELSIM target $NUM_EVENTS + buffer $PYTHIA_BUFFER)..."
+[ -n "$VETO_PDG_CSV" ] && echo "B-hadron veto: $VETO_PDG_CSV"
 if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
     echo "Using config file: $CONFIG_FILE"
     cat "$CONFIG_FILE"
     echo "--- End of config file ---"
-    ./pythia8_generate $PYTHIA_EVENTS "$CONFIG_FILE"
+    ./pythia8_generate $PYTHIA_EVENTS "$CONFIG_FILE" "$VETO_PDG_CSV"
 else
     echo "Using default configuration"
-    ./pythia8_generate $PYTHIA_EVENTS
+    ./pythia8_generate $PYTHIA_EVENTS "" "$VETO_PDG_CSV"
 fi
 
 # ADD DEBUGGING HERE:

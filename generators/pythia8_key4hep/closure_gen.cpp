@@ -1,5 +1,8 @@
 #include "Pythia8/Pythia.h"
 #include "Pythia8Plugins/HepMC3.h"
+#ifdef USE_EVTGEN
+#include "Pythia8Plugins/EvtGen.h"   // Pythia8<->EvtGen interface (ships with key4hep's Pythia 8.315)
+#endif
 #include "HepMC3/WriterAscii.h"
 #include "HepMC3/GenEvent.h"
 #include <fstream>
@@ -446,7 +449,41 @@ int main(int argc, char* argv[]) {
         std::cerr << "PYTHIA initialization failed!" << std::endl;
         return -1;
     }
-    
+
+#ifdef USE_EVTGEN
+    // Optional EvtGen heavy-flavour/tau decays. Build with USE_EVTGEN=1, enable
+    // at runtime with EVTGEN_DECAY=1. Uses the key4hep view's OWN EvtGen 02.02.03
+    // ($EVTGEN already ends in /share, so the files are at $EVTGEN/EvtGen/
+    // {DECAY.DEC,evt.pdl}) — no Pythia version bump, no .sif rebuild. The
+    // detector-stable V0s (K0S/K0L/Lambda/Sigma/Xi/Omega) are
+    // kept STABLE in EvtGen via empty decay blocks so DELSIM resolves their
+    // displaced vertices instead of EvtGen decaying them mid-chain in the TPC.
+    EvtGenDecays* evtgen = nullptr;
+    if (const char* ev = std::getenv("EVTGEN_DECAY"); ev && std::atoi(ev) == 1) {
+        const char* edir   = std::getenv("EVTGEN");   // key4hep sets this to .../share
+        const std::string base = edir ? std::string(edir) + "/EvtGen/" : std::string();
+        const char* decEnv = std::getenv("EVTGEN_DECAY_FILE");
+        const char* pdlEnv = std::getenv("EVTGEN_PDL_FILE");
+        const std::string dec = decEnv ? decEnv : base + "DECAY.DEC";
+        const std::string pdl = pdlEnv ? pdlEnv : base + "evt.pdl";
+        evtgen = new EvtGenDecays(&pythia, dec, pdl);
+        const std::string v0dec = "evtgen_v0_stable.dec";
+        std::ofstream df(v0dec);
+        df << "# auto-generated: keep V0s stable so DELSIM resolves their vertices\n";
+        for (const char* nm : {"K_S0","K_L0","Lambda0","anti-Lambda0",
+                "Sigma+","anti-Sigma-","Sigma-","anti-Sigma+",
+                "Xi0","anti-Xi0","Xi-","anti-Xi+","Omega-","anti-Omega+"})
+            df << "Decay " << nm << "\nEnddecay\n";
+        df << "End\n";
+        df.close();
+        evtgen->readDecayFile(v0dec);
+        std::cout << "=== EvtGen ENABLED (key4hep EvtGen 02.02.03): " << dec << " ===" << std::endl;
+        std::cout << "    CAVEAT: DELSIM regenerates decay vertices from its own JETSET PMAS\n"
+                  << "    and may re-decay heavy flavour (M1.5) -> EvtGen primarily enriches\n"
+                  << "    the HepMC3/EDM4hep TRUTH record; verify the DST impact per use." << std::endl;
+    }
+#endif
+
     EventWriter writer("fort.26");
 
     // CLOSURE TEST: emit the SAME accepted events as HepMC3, so hepmc2fadgen can
@@ -467,7 +504,14 @@ int main(int argc, char* argv[]) {
         }
         
         events_generated++;
-        
+
+#ifdef USE_EVTGEN
+        // Decay heavy-flavour/tau via EvtGen IN PLACE before the event is
+        // written/filled, so both fort.26 and the HepMC3 record carry the
+        // EvtGen decay tree.
+        if (evtgen) evtgen->decay();
+#endif
+
         if (writer.writeEvent(pythia.event, events_generated)) {
             events_accepted++;
             // Mirror the SAME event into HepMC3 (only accepted ones, to keep the
