@@ -1,0 +1,29 @@
+# Pythia8 8.315 (key4hep) + DEFAULT (Simple) shower: e+e- -> Z/gamma* -> hadrons at 91.2 GeV, ISR ON.
+# Consumed by generators/pythia8_key4hep/closure_gen  (native EventWriter -> fort.26 -> DELSIM).
+# Identical to config_vincia_isr_on.txt EXCEPT the shower model (1 = Simple/default vs 2 = Vincia),
+# so the pythia8_default and pythia8_vincia samples form a clean controlled shower-model comparison
+# at the same energy, hard process and ISR switch (and the same 91.2 GeV as the Sherpa production).
+# Companion: config_default_isr_off.txt (identical except PDF:lepton).
+#
+# NB: V0 stability (K0S 310, Lambda 3122, Sigma- 3112, Sigma+ 3222, Xi- 3312, Xi0 3322 + their
+#     antiparticles -> mayDecay = false) is applied IN closure_gen.cpp after this config loads,
+#     so it is intentionally NOT repeated here.
+
+# --- beams: e+e- at the Z pole (matches the Sherpa/Vincia production energy) ---
+Beams:idA = 11            # e-
+Beams:idB = -11           # e+
+Beams:eCM = 91.2          # GeV
+
+# --- hard process: s-channel gamma*/Z, hadronic decays only ---
+WeakSingleBoson:ffbar2gmZ = on
+23:onMode   = off         # turn all Z decay channels off, then
+23:onIfAny  = 1 2 3 4 5   # Z -> u,d,s,c,b only (hadrons)
+
+# --- parton shower: DEFAULT Simple shower  (1 = Simple/default, 2 = Vincia, 3 = Dire) ---
+PartonShowers:model = 1
+
+# --- initial-state radiation: ON ---
+# PDF:lepton = on  =>  the e+/e- carry a QED structure function and radiate part of the beam
+# energy as initial-state photons, so the effective sqrt(s') < 91.2 GeV (the physical LEP case).
+# This is Pythia's documented, shower-independent e+e- ISR switch.
+PDF:lepton = on
