@@ -1,0 +1,24 @@
+# Pythia8 8.315 (key4hep) + VINCIA shower: e+e- -> Z/gamma* -> hadrons at 91.2 GeV, ISR OFF.
+# Same MEPS/key4hep setup as config_vincia_isr_on.txt, with initial-state radiation disabled
+# (monochromatic beams). Consumed by generators/pythia8_key4hep/closure_gen.
+#
+# NB: V0 stability (310/3122/3112/3222/3312/3322 + antiparticles -> mayDecay = false) is applied
+#     IN closure_gen.cpp after this config loads, so it is intentionally NOT repeated here.
+
+# --- beams: e+e- at the Z pole (matches the Sherpa production energy) ---
+Beams:idA = 11            # e-
+Beams:idB = -11           # e+
+Beams:eCM = 91.2          # GeV
+
+# --- hard process: s-channel gamma*/Z, hadronic decays only ---
+WeakSingleBoson:ffbar2gmZ = on
+23:onMode   = off         # turn all Z decay channels off, then
+23:onIfAny  = 1 2 3 4 5   # Z -> u,d,s,c,b only (hadrons)
+
+# --- parton shower: VINCIA antenna shower  (1 = Simple/default, 2 = Vincia, 3 = Dire) ---
+PartonShowers:model = 2
+
+# --- initial-state radiation: OFF ---
+# PDF:lepton = off  =>  point-like e+/e- carry the FULL beam energy; no initial-state photons,
+# every collision is at exactly sqrt(s) = 91.2 GeV. The "unphysical" fixed-energy reference.
+PDF:lepton = off
